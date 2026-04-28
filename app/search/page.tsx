@@ -30,7 +30,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   let error: string | null = null;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = '';
     const res = await fetch(
       `${baseUrl}/api/search?q=${encodeURIComponent(query)}&page=${page}&sort=${sort}&source=${source}`,
       { cache: 'no-store' }

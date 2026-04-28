@@ -23,7 +23,7 @@ export default async function TrendingPage({ searchParams }: TrendingPageProps) 
   let error: string | null = null;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = '';
     const queryParams = new URLSearchParams({ time });
     if (category) queryParams.set('category', category);
     const res = await fetch(`${baseUrl}/api/trending?${queryParams}`, { cache: 'no-store' });

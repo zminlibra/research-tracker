@@ -17,7 +17,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   let error: string | null = null;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = '';
     const res = await fetch(`${baseUrl}/api/article/${id}`, { cache: 'no-store' });
     const data = await res.json();
 
@@ -34,7 +34,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   // 获取相关文章
   if (article && article.tags.length > 0) {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const baseUrl = '';
       const res = await fetch(
         `${baseUrl}/api/search?q=${encodeURIComponent(article.tags[0])}&page=1`,
         { cache: 'no-store' }

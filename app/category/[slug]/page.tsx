@@ -38,7 +38,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   let error: string | null = null;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = '';
     const res = await fetch(
       `${baseUrl}/api/search?q=${encodeURIComponent(keyword)}&sort=relevance`,
       { cache: 'no-store' }
