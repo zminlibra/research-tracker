@@ -39,7 +39,7 @@ function parseArxivXml(xml: string): Article[] {
     try {
       const id = extractTag(entry, 'id')?.replace('http://arxiv.org/abs/', '') || '';
       const title = cleanText(extractTag(entry, 'title') || '');
-      const summary = cleanText(extractTag(entry, 'summary') || '').slice(0, 300);
+      const summary = cleanText(extractTag(entry, 'summary') || '').slice(0, 1200);
       const published = extractTag(entry, 'published')?.split('T')[0] || '';
       const authors = extractAllTags(entry, 'name');
 

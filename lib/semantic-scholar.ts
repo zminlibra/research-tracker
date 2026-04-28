@@ -31,7 +31,7 @@ export async function searchSemanticScholar(
       return {
         id: `ss-${paper.paperId}`,
         title: (paper.title as string) || '无标题',
-        summary: ((paper.abstract as string) || '暂无摘要').slice(0, 300),
+        summary: ((paper.abstract as string) || '暂无摘要').slice(0, 1200),
         source: 'Semantic Scholar',
         sourceType: 'paper' as const,
         url: (paper.url as string) || `https://www.semanticscholar.org/paper/${paper.paperId}`,
@@ -65,7 +65,7 @@ export async function getPaperById(id: string): Promise<Article | null> {
     return {
       id: `ss-${paper.paperId}`,
       title: (paper.title as string) || '无标题',
-      summary: ((paper.abstract as string) || (paper.tldr as { text: string })?.text || '暂无摘要').slice(0, 500),
+      summary: ((paper.abstract as string) || (paper.tldr as { text: string })?.text || '暂无摘要').slice(0, 2000),
       source: 'Semantic Scholar',
       sourceType: 'paper',
       url: (paper.url as string) || `https://www.semanticscholar.org/paper/${paper.paperId}`,
