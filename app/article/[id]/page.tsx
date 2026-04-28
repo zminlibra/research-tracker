@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import AIAnalyzeButton from '@/components/AIAnalyzeButton';
+import ArticleTranslation from '@/components/ArticleTranslation';
 import { getArxivById } from '@/lib/arxiv';
 import { getPaperById } from '@/lib/semantic-scholar';
-import { translateToChinese } from '@/lib/ai';
 import { aggregateSearch } from '@/lib/search';
 import type { Article } from '@/lib/types';
 
@@ -18,7 +18,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   let article: Article | null = null;
   let related: Article[] = [];
   let error: string | null = null;
-  let chineseTranslation: string | null = null;
 
   try {
     if (id.startsWith('ss-')) {
@@ -109,14 +108,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     error = '文章加载失败，请稍后重试';
   }
 
-  // 生成中文翻译（如果原文是英文且摘要足够长）
-  if (article && article.summary.length > 30) {
-    const hasChinese = /[\u4e00-\u9fff]/.test(article.summary);
-    if (!hasChinese) {
-      chineseTranslation = await translateToChinese(article.summary);
-    }
-  }
-
   // 获取相关文章
   if (article && article.tags.length > 0) {
     try {
@@ -203,17 +194,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         </p>
       </div>
 
-      {/* 中文翻译 */}
-      {chineseTranslation && (
-        <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6 mb-8">
-          <h2 className="text-secondary font-bold text-lg mb-3 flex items-center gap-2">
-            <span>中文翻译</span>
-            <span className="text-xs font-normal text-text-muted bg-blue-100 px-2 py-0.5 rounded">自动翻译</span>
-          </h2>
-          <p className="text-text-secondary leading-relaxed text-sm whitespace-pre-line">
-            {chineseTranslation}
-          </p>
-        </div>
+      {/* 中文翻译（客户端 AI 翻译） */}
+      {!/[\u4e00-\u9fff]/.test(article.summary) && article.summary.length > 30 && (
+        <ArticleTranslation text={article.summary} />
       )}
 
       {/* AI 分析按钮 */}

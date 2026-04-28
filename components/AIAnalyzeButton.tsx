@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AIInsight from '@/components/AIInsight';
+import { generateClientInsight, getClientApiKey, saveClientApiKey, clearClientApiKey } from '@/lib/ai-client';
 import type { AIInsight as AIInsightType } from '@/lib/types';
 
 interface AIAnalyzeButtonProps {
@@ -14,30 +15,59 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
   const [insight, setInsight] = useState<AIInsightType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasKey, setHasKey] = useState(() => !!getClientApiKey());
 
   async function handleAnalyze() {
+    if (!hasKey) {
+      setShowKeyInput(true);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch('/api/insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, abstract, sourceType }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        setError(data.error || 'AI 分析失败');
+      const result = await generateClientInsight(title, abstract, sourceType);
+      setInsight(result);
+    } catch (e) {
+      const msg = String(e);
+      if (msg.includes('NO_API_KEY')) {
+        setHasKey(false);
+        setShowKeyInput(true);
+        setError('请先设置 Gemini API Key');
+      } else if (msg.includes('429')) {
+        setError('API 配额已用完，请稍后再试（免费版每分钟 10 次请求）');
+      } else if (msg.includes('403')) {
+        setError('API Key 无效，请检查后重新设置');
+        clearClientApiKey();
+        setHasKey(false);
       } else {
-        setInsight(data);
+        setError('AI 分析失败: ' + msg.slice(0, 100));
       }
-    } catch {
-      setError('网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSaveKey() {
+    const trimmed = apiKeyInput.trim();
+    if (!trimmed) return;
+    saveClientApiKey(trimmed);
+    setHasKey(true);
+    setShowKeyInput(false);
+    setApiKeyInput('');
+    setError(null);
+  }
+
+  function handleResetKey() {
+    clearClientApiKey();
+    setHasKey(false);
+    setApiKeyInput('');
+    setShowKeyInput(true);
+    setInsight(null);
+    setError(null);
   }
 
   // 已有分析结果
@@ -45,6 +75,14 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
     return (
       <div className="mb-8">
         <AIInsight insight={insight} />
+        <div className="text-center mt-4">
+          <button
+            onClick={handleResetKey}
+            className="text-text-muted text-xs underline hover:text-text-secondary"
+          >
+            更换 API Key
+          </button>
+        </div>
       </div>
     );
   }
@@ -58,7 +96,46 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
     );
   }
 
-  // 初始状态：显示按钮
+  // API Key 输入界面
+  if (showKeyInput) {
+    return (
+      <div className="mb-8">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
+        <div className="bg-gradient-to-r from-accent/20 to-white rounded-lg border border-accent/30 p-6">
+          <h3 className="text-secondary font-bold text-lg mb-2">设置 Gemini API Key</h3>
+          <p className="text-text-muted text-sm mb-4">
+            请输入你的 Gemini API Key（免费获取：
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline">aistudio.google.com/apikey</a>
+            ）。Key 仅保存在你的浏览器中，不会上传到服务器。
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
+              placeholder="粘贴 API Key..."
+              className="flex-1 px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              autoFocus
+            />
+            <button
+              onClick={handleSaveKey}
+              disabled={!apiKeyInput.trim()}
+              className="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-primary-dark transition-colors disabled:opacity-50"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 默认状态
   return (
     <div className="mb-8">
       {error && (
@@ -85,7 +162,7 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
           AI 分析
         </button>
         <p className="text-text-muted text-xs mt-3">
-          由 Gemini AI 提供分析，每次分析约需 3-5 秒
+          由 Gemini AI 提供分析 · 首次使用需配置 API Key
         </p>
       </div>
     </div>
