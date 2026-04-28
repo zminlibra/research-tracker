@@ -3,18 +3,27 @@ import type { AIInsight } from './types';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 /**
- * 安全地读取环境变量。
- * 在 Cloudflare Workers 中 process.env 在模块顶层不可用，
- * 必须在函数内部动态读取。
+ * 安全地读取 Gemini API Key。
+ *
+ * 在 Cloudflare Workers 中必须使用 getCloudflareContext() 读取环境变量；
+ * 本地开发时回退到 process.env。
  */
-function getApiKey(): string {
+async function getApiKey(): Promise<string> {
+  // 本地开发：process.env 可用
   try {
-    // 用括号语法阻止 Next.js 在构建时内联替换 process.env
-    // 这样值会在 Cloudflare Worker 运行时动态读取
-    return (process.env['GEMINI_API_KEY'] as string) || '';
-  } catch {
-    return '';
-  }
+    const key = (process.env['GEMINI_API_KEY'] as string);
+    if (key) return key;
+  } catch { /* ignore */ }
+
+  // Cloudflare Workers：通过 getCloudflareContext 读取
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const ctx = await getCloudflareContext({ async: true });
+    const key = (ctx.env as Record<string, string>).GEMINI_API_KEY;
+    if (key) return key;
+  } catch { /* ignore */ }
+
+  return '';
 }
 
 export async function generateInsight(
@@ -22,7 +31,7 @@ export async function generateInsight(
   abstract: string,
   sourceType: string
 ): Promise<AIInsight> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
 
   if (apiKey) {
     try {
@@ -99,7 +108,7 @@ async function generateWithGemini(
 
 // ─── 中英翻译 ───────────────────────────────────────────────
 export async function translateToChinese(text: string): Promise<string | null> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   if (!apiKey || !text || text.length < 20) return null;
 
   try {
@@ -124,7 +133,7 @@ export async function translateToChinese(text: string): Promise<string | null> {
 
 // ─── 中文查询翻译 ───────────────────────────────────────────
 export async function translateChineseQuery(chineseQuery: string): Promise<string | null> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   if (!apiKey || !/[\u4e00-\u9fff]/.test(chineseQuery)) return null;
 
   try {
