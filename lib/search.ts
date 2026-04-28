@@ -2,6 +2,11 @@ import type { Article, SearchResult } from './types';
 import { searchArxiv } from './arxiv';
 import { searchSemanticScholar } from './semantic-scholar';
 import { searchNews, getNewsFromFeeds } from './news';
+import { translateChineseQuery } from './ai';
+
+function isChineseQuery(q: string): boolean {
+  return /[\u4e00-\u9fff]/.test(q);
+}
 
 export async function aggregateSearch(
   query: string,
@@ -13,10 +18,20 @@ export async function aggregateSearch(
   const start = (page - 1) * pageSize;
   const apiMax = Math.min(pageSize * 2, 30);
 
+  // 中文查询 → 尝试翻译成英文关键词用于学术搜索
+  let academicQuery = query;
+  if (isChineseQuery(query)) {
+    const translated = await translateChineseQuery(query);
+    if (translated) {
+      academicQuery = translated;
+    }
+  }
+
   // 并行搜索多个数据源：论文 + 新闻
+  // 学术源用英文查询（可能是翻译后的），新闻源用原始查询
   const [arxivResults, ssResults, newsResults] = await Promise.all([
-    searchArxiv(query, apiMax, start),
-    searchSemanticScholar(query, apiMax, start),
+    searchArxiv(academicQuery, apiMax, start),
+    searchSemanticScholar(academicQuery, apiMax, start),
     searchNews(query, apiMax),
   ]);
 
