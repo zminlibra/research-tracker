@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import AIInsight from '@/components/AIInsight';
+import AIAnalyzeButton from '@/components/AIAnalyzeButton';
 import { getArxivById } from '@/lib/arxiv';
 import { getPaperById } from '@/lib/semantic-scholar';
-import { generateInsight } from '@/lib/ai';
+import { translateToChinese } from '@/lib/ai';
 import { aggregateSearch } from '@/lib/search';
-import type { Article, AIInsight as AIInsightType } from '@/lib/types';
+import type { Article } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +16,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const { id } = await params;
 
   let article: Article | null = null;
-  let insight: AIInsightType | null = null;
   let related: Article[] = [];
   let error: string | null = null;
+  let chineseTranslation: string | null = null;
 
   try {
     if (id.startsWith('ss-')) {
@@ -104,11 +104,17 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
     if (!article) {
       error = '文章未找到';
-    } else {
-      insight = await generateInsight(article.title, article.summary, article.sourceType);
     }
   } catch {
     error = '文章加载失败，请稍后重试';
+  }
+
+  // 生成中文翻译（如果原文是英文且摘要足够长）
+  if (article && article.summary.length > 30) {
+    const hasChinese = /[\u4e00-\u9fff]/.test(article.summary);
+    if (!hasChinese) {
+      chineseTranslation = await translateToChinese(article.summary);
+    }
   }
 
   // 获取相关文章
@@ -189,20 +195,33 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         </div>
       </div>
 
-      {/* 文章摘要 */}
-      <div className="bg-white rounded-lg border border-border p-6 mb-8">
+      {/* 内容摘要（原文） */}
+      <div className="bg-white rounded-lg border border-border p-6 mb-4">
         <h2 className="text-secondary font-bold text-lg mb-3">内容摘要</h2>
-        <p className="text-text-secondary leading-relaxed text-sm">
+        <p className="text-text-secondary leading-relaxed text-sm whitespace-pre-line">
           {article.summary}
         </p>
       </div>
 
-      {/* AI 洞察 */}
-      {insight && (
-        <div className="mb-8">
-          <AIInsight insight={insight} />
+      {/* 中文翻译 */}
+      {chineseTranslation && (
+        <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6 mb-8">
+          <h2 className="text-secondary font-bold text-lg mb-3 flex items-center gap-2">
+            <span>中文翻译</span>
+            <span className="text-xs font-normal text-text-muted bg-blue-100 px-2 py-0.5 rounded">自动翻译</span>
+          </h2>
+          <p className="text-text-secondary leading-relaxed text-sm whitespace-pre-line">
+            {chineseTranslation}
+          </p>
         </div>
       )}
+
+      {/* AI 分析按钮 */}
+      <AIAnalyzeButton
+        title={article.title}
+        abstract={article.summary}
+        sourceType={article.sourceType}
+      />
 
       {/* 相关推荐 */}
       {related.length > 0 && (

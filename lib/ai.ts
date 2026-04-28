@@ -83,6 +83,30 @@ async function generateWithGemini(
   };
 }
 
+// ─── 中英翻译（摘要翻译用）──────────────────────────────────
+export async function translateToChinese(text: string): Promise<string | null> {
+  if (!GEMINI_API_KEY || !text || text.length < 20) return null;
+
+  try {
+    const prompt = `请将以下英文科技内容翻译成流畅的中文。保留专业术语，使译文通俗易懂。只输出翻译结果，不要任何解释。\n\n${text.slice(0, 2000)}`;
+
+    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+      }),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── 中文查询翻译 ────────────────────────────────────────────
 export async function translateChineseQuery(chineseQuery: string): Promise<string | null> {
   if (!GEMINI_API_KEY) return null;
