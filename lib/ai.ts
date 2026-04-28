@@ -1,23 +1,37 @@
 import type { AIInsight } from './types';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+/**
+ * 安全地读取环境变量。
+ * 在 Cloudflare Workers 中 process.env 在模块顶层不可用，
+ * 必须在函数内部动态读取。
+ */
+function getApiKey(): string {
+  try {
+    // 用括号语法阻止 Next.js 在构建时内联替换 process.env
+    // 这样值会在 Cloudflare Worker 运行时动态读取
+    return (process.env['GEMINI_API_KEY'] as string) || '';
+  } catch {
+    return '';
+  }
+}
 
 export async function generateInsight(
   title: string,
   abstract: string,
   sourceType: string
 ): Promise<AIInsight> {
-  // 优先使用 Gemini（免费套餐）
-  if (GEMINI_API_KEY) {
+  const apiKey = getApiKey();
+
+  if (apiKey) {
     try {
-      return await generateWithGemini(title, abstract, sourceType);
+      return await generateWithGemini(title, abstract, sourceType, apiKey);
     } catch (e) {
       console.error('Gemini API error, falling back:', e);
     }
   }
 
-  // 无 API Key 时的后备方案
   return fallbackInsight(title, abstract, sourceType);
 }
 
@@ -25,7 +39,8 @@ export async function generateInsight(
 async function generateWithGemini(
   title: string,
   abstract: string,
-  sourceType: string
+  sourceType: string,
+  apiKey: string
 ): Promise<AIInsight> {
   const typeLabel = sourceType === 'paper' ? '一篇学术论文' : '一篇科技新闻报道';
 
@@ -46,7 +61,7 @@ async function generateWithGemini(
   "analysis": "用200-300字的中文，深入分析：(1)这项研究/报道的意义和潜在影响；(2)与该领域其他工作的关联或对比；(3)可能的应用场景或局限性。要具体，不要套话。"
 }`;
 
-  const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -56,13 +71,13 @@ async function generateWithGemini(
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini API ${response.status}`);
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Gemini API ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-  // 从 Gemini 回复中提取 JSON
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
@@ -72,10 +87,9 @@ async function generateWithGemini(
         keyPoints: parsed.keyPoints || [],
         analysis: parsed.analysis || '',
       };
-    } catch { /* JSON 解析失败，继续尝试 */ }
+    } catch { /* fall through */ }
   }
 
-  // 如果 JSON 解析失败，构造基本结果
   return {
     summary: text.slice(0, 500),
     analysis: '',
@@ -83,14 +97,15 @@ async function generateWithGemini(
   };
 }
 
-// ─── 中英翻译（摘要翻译用）──────────────────────────────────
+// ─── 中英翻译 ───────────────────────────────────────────────
 export async function translateToChinese(text: string): Promise<string | null> {
-  if (!GEMINI_API_KEY || !text || text.length < 20) return null;
+  const apiKey = getApiKey();
+  if (!apiKey || !text || text.length < 20) return null;
 
   try {
     const prompt = `请将以下英文科技内容翻译成流畅的中文。保留专业术语，使译文通俗易懂。只输出翻译结果，不要任何解释。\n\n${text.slice(0, 2000)}`;
 
-    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -107,15 +122,15 @@ export async function translateToChinese(text: string): Promise<string | null> {
   }
 }
 
-// ─── 中文查询翻译 ────────────────────────────────────────────
+// ─── 中文查询翻译 ───────────────────────────────────────────
 export async function translateChineseQuery(chineseQuery: string): Promise<string | null> {
-  if (!GEMINI_API_KEY) return null;
-  if (!/[\u4e00-\u9fff]/.test(chineseQuery)) return null;
+  const apiKey = getApiKey();
+  if (!apiKey || !/[\u4e00-\u9fff]/.test(chineseQuery)) return null;
 
   try {
     const prompt = `将以下中文科研搜索词翻译成英文关键词（用空格分隔，只输出关键词，不要其他内容）：\n\n${chineseQuery}`;
 
-    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -125,10 +140,8 @@ export async function translateChineseQuery(chineseQuery: string): Promise<strin
     });
 
     if (!response.ok) return null;
-
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return text.trim() || null;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
   } catch {
     return null;
   }
@@ -151,7 +164,6 @@ function fallbackInsight(
     };
   }
 
-  // 后备摘要：取重要句子
   const scored = sentences.map((s, i) => ({
     text: s.trim(),
     score: (i === 0 ? 3 : i === sentences.length - 1 ? 2 : 0)
@@ -164,13 +176,11 @@ function fallbackInsight(
     .map(s => s.text)
     .join('。');
 
-  // 后备要点
   const keyPoints = scored
     .filter(s => s.score >= 2)
     .slice(0, 4)
     .map(s => s.text.length > 100 ? s.text.slice(0, 97) + '…' : s.text);
 
-  // 后备分析
   const domainKeywords: Record<string, string> = {
     ai: '人工智能', ml: '机器学习', gene: '基因编辑', cancer: '癌症研究',
     battery: '电池技术', solar: '光伏', quantum: '量子计算', robot: '机器人',
