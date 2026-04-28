@@ -36,10 +36,10 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
       if (msg.includes('NO_API_KEY')) {
         setHasKey(false);
         setShowKeyInput(true);
-        setError('请先设置 Gemini API Key');
-      } else if (msg.includes('429')) {
-        setError('API 配额已用完，请稍后再试（免费版每分钟 10 次请求）');
-      } else if (msg.includes('403')) {
+        setError('请先设置 DeepSeek API Key');
+      } else if (msg.includes('DEEPSEEK_QUOTA_EXHAUSTED') || msg.includes('402')) {
+        setError('API 额度不足，请前往 platform.deepseek.com 充值');
+      } else if (msg.includes('401')) {
         setError('API Key 无效，请检查后重新设置');
         clearClientApiKey();
         setHasKey(false);
@@ -106,10 +106,10 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
           </div>
         )}
         <div className="bg-gradient-to-r from-accent/20 to-white rounded-lg border border-accent/30 p-6">
-          <h3 className="text-secondary font-bold text-lg mb-2">设置 Gemini API Key</h3>
+          <h3 className="text-secondary font-bold text-lg mb-2">设置 DeepSeek API Key</h3>
           <p className="text-text-muted text-sm mb-4">
-            请输入你的 Gemini API Key（免费获取：
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline">aistudio.google.com/apikey</a>
+            请输入你的 DeepSeek API Key（获取地址：
+            <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" className="text-primary underline">platform.deepseek.com/api_keys</a>
             ）。Key 仅保存在你的浏览器中，不会上传到服务器。
           </p>
           <div className="flex gap-2">
@@ -162,7 +162,7 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
           AI 分析
         </button>
         <p className="text-text-muted text-xs mt-3">
-          由 Gemini AI 提供分析 · 首次使用需配置 API Key
+          由 DeepSeek AI 提供分析 · 首次使用需配置 API Key
         </p>
       </div>
     </div>

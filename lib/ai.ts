@@ -1,20 +1,35 @@
 import type { AIInsight } from './types';
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
-/**
- * 安全地读取 Gemini API Key。
- *
- * 在 Cloudflare Workers 中必须使用 getCloudflareContext() 读取环境变量；
- * 本地开发时回退到 process.env。
- */
 async function getApiKey(): Promise<string> {
-  // 通过 dot notation 让 Next.js 在构建时内联值
-  // （Cloudflare Pages 在构建时注入环境变量，但不会传递到 Worker 运行时）
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY;
   if (key) return key;
-
   return '';
+}
+
+async function callDeepSeek(prompt: string, apiKey: string, temperature = 0.5, maxTokens = 1024): Promise<string> {
+  const response = await fetch(DEEPSEEK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-v4-flash',
+      messages: [{ role: 'user', content: prompt }],
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`DeepSeek API ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
 }
 
 export async function generateInsight(
@@ -26,17 +41,17 @@ export async function generateInsight(
 
   if (apiKey) {
     try {
-      return await generateWithGemini(title, abstract, sourceType, apiKey);
+      return await generateWithDeepSeek(title, abstract, sourceType, apiKey);
     } catch (e) {
-      console.error('Gemini API error, falling back:', e);
+      console.error('DeepSeek API error, falling back:', e);
     }
   }
 
   return fallbackInsight(title, abstract, sourceType);
 }
 
-// ─── Gemini API ──────────────────────────────────────────────
-async function generateWithGemini(
+// ─── DeepSeek API ──────────────────────────────────────────────
+async function generateWithDeepSeek(
   title: string,
   abstract: string,
   sourceType: string,
@@ -61,22 +76,7 @@ async function generateWithGemini(
   "analysis": "用200-300字的中文，深入分析：(1)这项研究/报道的意义和潜在影响；(2)与该领域其他工作的关联或对比；(3)可能的应用场景或局限性。要具体，不要套话。"
 }`;
 
-  const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.5, maxOutputTokens: 1024 },
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Gemini API ${response.status}: ${errText}`);
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const text = await callDeepSeek(prompt, apiKey, 0.5, 1024);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
@@ -105,18 +105,7 @@ export async function translateToChinese(text: string): Promise<string | null> {
   try {
     const prompt = `请将以下英文科技内容翻译成流畅的中文。保留专业术语，使译文通俗易懂。只输出翻译结果，不要任何解释。\n\n${text.slice(0, 2000)}`;
 
-    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    return await callDeepSeek(prompt, apiKey, 0.3, 1024);
   } catch {
     return null;
   }
@@ -130,18 +119,7 @@ export async function translateChineseQuery(chineseQuery: string): Promise<strin
   try {
     const prompt = `将以下中文科研搜索词翻译成英文关键词（用空格分隔，只输出关键词，不要其他内容）：\n\n${chineseQuery}`;
 
-    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 100 },
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    return await callDeepSeek(prompt, apiKey, 0.2, 100);
   } catch {
     return null;
   }
@@ -192,8 +170,8 @@ function fallbackInsight(
   }
 
   const analysis = domainHint
-    ? `该研究属于${domainHint}领域的前沿探索。由于当前未配置 AI API Key，无法提供深度分析。\n\n请在 Cloudflare Pages 环境变量中设置 GEMINI_API_KEY（可从 https://aistudio.google.com/apikey 免费获取）以启用真正的 AI 分析。`
-    : '当前使用规则引擎生成分析，质量有限。\n\n请在 Cloudflare Pages 环境变量中设置 GEMINI_API_KEY（可从 https://aistudio.google.com/apikey 免费获取）以启用真正的 AI 分析。';
+    ? `该研究属于${domainHint}领域的前沿探索。由于当前未配置 AI API Key，无法提供深度分析。\n\n请在环境变量中设置 DEEPSEEK_API_KEY（可从 https://platform.deepseek.com/api_keys 获取）以启用真正的 AI 分析。`
+    : '当前使用规则引擎生成分析，质量有限。\n\n请在环境变量中设置 DEEPSEEK_API_KEY（可从 https://platform.deepseek.com/api_keys 获取）以启用真正的 AI 分析。';
 
   return { summary, keyPoints, analysis };
 }

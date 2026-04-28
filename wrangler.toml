@@ -8,7 +8,7 @@ directory = ".open-next/assets"
 binding = "ASSETS"
 
 [vars]
-GEMINI_API_KEY = ""
+DEEPSEEK_API_KEY = ""
 
 [observability]
 enabled = true

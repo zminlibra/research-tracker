@@ -46,9 +46,9 @@ export default function ArticleTranslation({ text }: ArticleTranslationProps) {
       if (msg.includes('NO_API_KEY')) {
         setHasKey(false);
         setShowKeyInput(true);
-      } else if (msg.includes('429')) {
-        setError('API 配额已用完，请稍后重试');
-      } else if (msg.includes('403')) {
+      } else if (msg.includes('DEEPSEEK_QUOTA_EXHAUSTED') || msg.includes('402')) {
+        setError('API 额度不足，请前往 platform.deepseek.com 充值');
+      } else if (msg.includes('401')) {
         setError('API Key 无效');
         clearClientApiKey();
         setHasKey(false);
@@ -74,10 +74,10 @@ export default function ArticleTranslation({ text }: ArticleTranslationProps) {
   if (showKeyInput) {
     return (
       <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6 mb-8">
-        <h3 className="text-secondary font-bold text-lg mb-2">设置 Gemini API Key</h3>
+        <h3 className="text-secondary font-bold text-lg mb-2">设置 DeepSeek API Key</h3>
         <p className="text-text-muted text-sm mb-4">
-          翻译功能需要 Gemini API Key（免费获取：
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline">aistudio.google.com/apikey</a>
+          翻译功能需要 DeepSeek API Key（获取地址：
+          <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" className="text-primary underline">platform.deepseek.com/api_keys</a>
           ）。Key 仅保存在浏览器中。
         </p>
         <div className="flex gap-2">

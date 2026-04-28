@@ -2,13 +2,9 @@
 
 import type { AIInsight } from './types';
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const STORAGE_KEY = 'gemini_api_key';
+const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const STORAGE_KEY = 'deepseek_api_key';
 
-/**
- * 从 localStorage 读取用户设置的 API Key。
- * 如果没有设置过，返回空字符串（调用方应提示用户输入）。
- */
 export function getClientApiKey(): string {
   if (typeof window === 'undefined') return '';
   try {
@@ -18,9 +14,6 @@ export function getClientApiKey(): string {
   }
 }
 
-/**
- * 保存 API Key 到 localStorage。
- */
 export function saveClientApiKey(key: string): void {
   if (typeof window === 'undefined') return;
   try {
@@ -28,9 +21,6 @@ export function saveClientApiKey(key: string): void {
   } catch { /* ignore */ }
 }
 
-/**
- * 清除已保存的 API Key。
- */
 export function clearClientApiKey(): void {
   if (typeof window === 'undefined') return;
   try {
@@ -38,34 +28,37 @@ export function clearClientApiKey(): void {
   } catch { /* ignore */ }
 }
 
-/**
- * 检查是否已配置 API Key。
- */
 export function hasClientApiKey(): boolean {
   return getClientApiKey().length > 0;
 }
 
-// ─── 通用 Gemini 调用 ──────────────────────────────────────────
-async function callGemini(prompt: string, temperature = 0.5, maxTokens = 1024): Promise<string> {
+// ─── 通用 DeepSeek 调用（OpenAI 兼容格式）───────────────────────
+async function callDeepSeek(prompt: string, temperature = 0.5, maxTokens = 1024): Promise<string> {
   const apiKey = getClientApiKey();
   if (!apiKey) throw new Error('NO_API_KEY');
 
-  const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+  const response = await fetch(DEEPSEEK_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature, maxOutputTokens: maxTokens },
+      model: 'deepseek-v4-flash',
+      messages: [{ role: 'user', content: prompt }],
+      temperature,
+      max_tokens: maxTokens,
     }),
   });
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error(`Gemini API ${response.status}: ${errText}`);
+    if (response.status === 402) throw new Error('DEEPSEEK_QUOTA_EXHAUSTED');
+    throw new Error(`DeepSeek API ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return data.choices?.[0]?.message?.content || '';
 }
 
 // ─── AI 分析 ───────────────────────────────────────────────────
@@ -93,7 +86,7 @@ export async function generateClientInsight(
   "analysis": "用200-300字的中文，深入分析：(1)这项研究/报道的意义和潜在影响；(2)与该领域其他工作的关联或对比；(3)可能的应用场景或局限性。要具体，不要套话。"
 }`;
 
-  const text = await callGemini(prompt, 0.5, 1024);
+  const text = await callDeepSeek(prompt, 0.5, 1024);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
@@ -118,12 +111,12 @@ export async function generateClientInsight(
 export async function translateToChineseClient(text: string): Promise<string> {
   const prompt = `请将以下英文科技内容翻译成流畅的中文。保留专业术语，使译文通俗易懂。只输出翻译结果，不要任何解释。\n\n${text.slice(0, 2000)}`;
 
-  return callGemini(prompt, 0.3, 1024);
+  return callDeepSeek(prompt, 0.3, 1024);
 }
 
 // ─── 中文查询翻译为英文关键词 ──────────────────────────────────
 export async function translateChineseQueryClient(chineseQuery: string): Promise<string> {
   const prompt = `将以下中文科研搜索词翻译成英文关键词（用空格分隔，只输出关键词，不要其他内容）：\n\n${chineseQuery}`;
 
-  return callGemini(prompt, 0.2, 100);
+  return callDeepSeek(prompt, 0.2, 100);
 }
