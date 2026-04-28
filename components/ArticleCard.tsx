@@ -7,10 +7,9 @@ interface ArticleCardProps {
 }
 
 export default function ArticleCard({ article, showImage = true }: ArticleCardProps) {
-  const sourceTypeLabel = {
-    news: '新闻报道',
+  const sourceTypeLabel: Record<string, string> = {
+    news: '新闻/报道',
     paper: '学术论文',
-    report: '行业动态',
   };
 
   return (
@@ -34,7 +33,7 @@ export default function ArticleCard({ article, showImage = true }: ArticleCardPr
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
                 <span className="text-3xl text-primary/40">
-                  {article.sourceType === 'paper' ? '📄' : article.sourceType === 'news' ? '📰' : '📊'}
+                  {article.sourceType === 'paper' ? '📄' : '📰'}
                 </span>
               </div>
             )}
@@ -55,8 +54,7 @@ export default function ArticleCard({ article, showImage = true }: ArticleCardPr
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted mb-2">
               <span className="inline-flex items-center gap-1">
                 <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                  article.sourceType === 'paper' ? 'bg-blue-500' :
-                  article.sourceType === 'news' ? 'bg-green-500' : 'bg-orange-500'
+                  article.sourceType === 'paper' ? 'bg-blue-500' : 'bg-green-500'
                 }`} />
                 {sourceTypeLabel[article.sourceType]}
               </span>

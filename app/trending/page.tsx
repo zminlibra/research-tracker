@@ -96,7 +96,7 @@ export default async function TrendingPage({ searchParams }: TrendingPageProps) 
                         <span className={`inline-block w-1.5 h-1.5 rounded-full ${
                           article.sourceType === 'paper' ? 'bg-blue-500' : 'bg-green-500'
                         }`} />
-                        {{ news: '新闻报道', paper: '学术论文', report: '行业动态' }[article.sourceType]}
+                        {{ news: '新闻/报道', paper: '学术论文' }[article.sourceType]}
                       </span>
                       <span>{article.source}</span>
                       <span>{article.publishedDate}</span>

@@ -3,7 +3,7 @@ export interface Article {
   title: string;
   summary: string;
   source: string;
-  sourceType: 'news' | 'paper' | 'report';
+  sourceType: 'news' | 'paper';
   url: string;
   imageUrl: string | null;
   publishedDate: string;

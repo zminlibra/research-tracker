@@ -18,15 +18,67 @@ export async function GET(
     } else if (id.startsWith('arxiv-')) {
       const arxivId = id.replace('arxiv-', '');
       article = await getArxivById(arxivId);
-    } else if (id.startsWith('rss-') || id.startsWith('news-')) {
-      // RSS/新闻文章：返回从 URL 解码的基本信息
-      // 完整信息已在搜索结果中提供，此处仅提供基本可用数据
+    } else if (id.startsWith('rss-')) {
+      let originalUrl = '#';
+      try {
+        originalUrl = atob(id.replace('rss-', ''));
+      } catch { /* 兼容旧格式 */ }
       article = {
         id,
-        title: '新闻/行业动态',
+        title: '新闻/报道',
         summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
         source: '网络新闻',
-        sourceType: id.startsWith('news-') ? 'news' : 'report',
+        sourceType: 'news',
+        url: originalUrl,
+        imageUrl: null,
+        publishedDate: new Date().toISOString().split('T')[0],
+        authors: [],
+        tags: [],
+        clickCount: 0,
+      };
+    } else if (id.startsWith('hn-')) {
+      const hnId = id.replace('hn-', '');
+      try {
+        const hnRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${hnId}.json`);
+        if (hnRes.ok) {
+          const hnItem = await hnRes.json();
+          article = {
+            id,
+            title: hnItem.title || 'Hacker News 讨论',
+            summary: (hnItem.text || '').replace(/<[^>]+>/g, '').slice(0, 500) || '暂无摘要',
+            source: 'Hacker News',
+            sourceType: 'news',
+            url: hnItem.url || `https://news.ycombinator.com/item?id=${hnId}`,
+            imageUrl: null,
+            publishedDate: hnItem.time ? new Date(hnItem.time * 1000).toISOString().split('T')[0] : '',
+            authors: [],
+            tags: [],
+            clickCount: hnItem.score || 0,
+          };
+        }
+      } catch { /* fallback */ }
+      if (!article) {
+        article = {
+          id,
+          title: 'Hacker News 讨论',
+          summary: '该内容来自 Hacker News。',
+          source: 'Hacker News',
+          sourceType: 'news',
+          url: `https://news.ycombinator.com/item?id=${hnId}`,
+          imageUrl: null,
+          publishedDate: new Date().toISOString().split('T')[0],
+          authors: [],
+          tags: [],
+          clickCount: 0,
+        };
+      }
+    } else if (id.startsWith('news-')) {
+      article = {
+        id,
+        title: '新闻/报道',
+        summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
+        source: '网络新闻',
+        sourceType: 'news',
         url: '#',
         imageUrl: null,
         publishedDate: new Date().toISOString().split('T')[0],

@@ -8,7 +8,7 @@ export async function aggregateSearch(
   page = 1,
   pageSize = 20,
   sortBy: 'relevance' | 'date' | 'clicks' = 'relevance',
-  sourceFilter: 'all' | 'paper' | 'news' | 'report' = 'all'
+  sourceFilter: 'all' | 'paper' | 'news' = 'all'
 ): Promise<SearchResult> {
   const start = (page - 1) * pageSize;
   const apiMax = Math.min(pageSize * 2, 30);

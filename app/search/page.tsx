@@ -40,7 +40,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const totalPages = Math.ceil(totalCount / 20);
   const sortLabels: Record<string, string> = { relevance: '按相关性', date: '按时间', clicks: '按热度' };
-  const sourceLabels: Record<string, string> = { all: '全部', paper: '学术论文', news: '新闻报道', report: '行业动态' };
+  const sourceLabels: Record<string, string> = { all: '全部', paper: '学术论文', news: '新闻/报道' };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -126,14 +126,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 {/* 元信息 */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted mb-3">
                   <span className={`inline-flex items-center gap-1 ${
-                    article.sourceType === 'paper' ? 'text-blue-600' :
-                    article.sourceType === 'news' ? 'text-green-600' : 'text-orange-600'
+                    article.sourceType === 'paper' ? 'text-blue-600' : 'text-green-600'
                   }`}>
                     <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                      article.sourceType === 'paper' ? 'bg-blue-500' :
-                      article.sourceType === 'news' ? 'bg-green-500' : 'bg-orange-500'
+                      article.sourceType === 'paper' ? 'bg-blue-500' : 'bg-green-500'
                     }`} />
-                    {{ news: '新闻报道', paper: '学术论文', report: '行业动态' }[article.sourceType]}
+                    {{ news: '新闻/报道', paper: '学术论文' }[article.sourceType]}
                   </span>
                   <span>{article.source}</span>
                   <span>{article.publishedDate}</span>

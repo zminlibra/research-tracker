@@ -43,20 +43,17 @@ async function fetchHNTopStories(limit = 50): Promise<HNItem[]> {
 interface RSSSource {
   url: string;
   name: string;
-  type: 'news' | 'report';
+  type: 'news';
 }
 
 const RSS_SOURCES: RSSSource[] = [
-  // 英文科技新闻
   { url: 'https://hnrss.org/frontpage?count=25', name: 'Hacker News', type: 'news' },
   { url: 'https://feeds.arstechnica.com/arstechnica/index', name: 'Ars Technica', type: 'news' },
   { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml', name: 'BBC Tech', type: 'news' },
   { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', name: 'NYT Tech', type: 'news' },
-  // 综合科技/科学
-  { url: 'https://www.sciencedaily.com/rss/top/science.xml', name: 'Science Daily', type: 'report' },
-  { url: 'https://www.sciencedaily.com/rss/top/technology.xml', name: 'Science Daily Tech', type: 'report' },
+  { url: 'https://www.sciencedaily.com/rss/top/science.xml', name: 'Science Daily', type: 'news' },
+  { url: 'https://www.sciencedaily.com/rss/top/technology.xml', name: 'Science Daily Tech', type: 'news' },
   { url: 'https://www.wired.com/feed/rss', name: 'Wired', type: 'news' },
-  // 中文科技新闻
   { url: 'https://36kr.com/feed', name: '36氪', type: 'news' },
 ];
 
@@ -181,7 +178,7 @@ function isChineseQuery(query: string): boolean {
 // ─── 数据转换 ──────────────────────────────────────────────────
 function rssToArticle(
   item: RSSItem,
-  sourceType: 'news' | 'report',
+  sourceType: 'news',
   sourceName: string
 ): Article {
   const date = item.pubDate
@@ -189,7 +186,7 @@ function rssToArticle(
     : new Date().toISOString().split('T')[0];
 
   return {
-    id: `rss-${btoa(item.link).slice(0, 48)}`,
+    id: `rss-${btoa(item.link)}`,
     title: cleanHTML(item.title) || '无标题',
     summary: cleanHTML(item.description).slice(0, 350) || '暂无摘要，请点击原文查看详情',
     source: sourceName,
