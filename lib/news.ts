@@ -39,7 +39,7 @@ async function fetchHNTopStories(limit = 50): Promise<HNItem[]> {
   }
 }
 
-// ─── RSS 源列表（移除 Reddit RSS，因其封禁云服务器 IP）────────
+// ─── RSS 源列表 ─────────────────────────────────────────────
 interface RSSSource {
   url: string;
   name: string;
@@ -86,25 +86,24 @@ async function fetchRSSFeed(url: string): Promise<RSSItem[]> {
 
 function parseRSS(xml: string): RSSItem[] {
   const items: RSSItem[] = [];
-  // 同时支持 <item> 和 <entry> (Atom) 格式
   const itemRegex = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
   let match;
 
   while ((match = itemRegex.exec(xml)) !== null) {
-    const xml = match[1];
-    const link = extractTag(xml, 'link')
-      || extractAttr(xml, 'link', 'href')
+    const innerXml = match[1];
+    const link = extractTag(innerXml, 'link')
+      || extractAttr(innerXml, 'link', 'href')
       || '';
 
     items.push({
-      title: extractTag(xml, 'title') || '',
+      title: extractTag(innerXml, 'title') || '',
       link: link,
-      description: extractTag(xml, 'description')
-        || extractTag(xml, 'summary')
-        || extractTag(xml, 'content') || '',
-      pubDate: extractTag(xml, 'pubDate')
-        || extractTag(xml, 'published')
-        || extractTag(xml, 'updated') || '',
+      description: extractTag(innerXml, 'description')
+        || extractTag(innerXml, 'summary')
+        || extractTag(innerXml, 'content') || '',
+      pubDate: extractTag(innerXml, 'pubDate')
+        || extractTag(innerXml, 'published')
+        || extractTag(innerXml, 'updated') || '',
     });
   }
 
@@ -124,17 +123,34 @@ function extractAttr(xml: string, tag: string, attr: string): string | null {
 
 function cleanHTML(html: string): string {
   let cleaned = html
+    // 先移除 CDATA 包裹
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    // 移除 <img> 标签及其后的图注文字（"图源：...", "图片来源：..."）
+    .replace(/<img[^>]*>/gi, '')
+    .replace(/图源[：:][^\n<。]*[。\n]?/g, '')
+    .replace(/图片来源[：:][^\n<。]*[。\n]?/g, '')
+    .replace(/图片[：:][^\n<。]*[。\n]?/g, '')
+    // 移除所有 HTML 标签
     .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    // 解码 HTML 实体
+    .replace(/&amp;|&#38;/gi, '&')
+    .replace(/&lt;|&#60;/gi, '<')
+    .replace(/&gt;|&#62;/gi, '>')
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&mdash;|&#8212;/gi, '—')
+    .replace(/&ndash;|&#8211;/gi, '–')
+    .replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_m, n) => String.fromCharCode(parseInt(n, 16)))
+    // 移除 CSS 残留 和 data 属性残留
+    .replace(/[a-z]+-[a-z]+(?:-[a-z]+)*\s*[:=]\s*[^;]+[;]?/gi, '')
+    .replace(/image-wrapper|img-desc|image-caption/gi, '')
+    // 合并空白
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 清理 HN RSS 的元数据行
+  // 清理 HN RSS 元数据
   cleaned = cleaned
     .replace(/Article URL:\s*\S+/gi, '')
     .replace(/Comments URL:\s*\S+/gi, '')
@@ -144,6 +160,50 @@ function cleanHTML(html: string): string {
     .trim();
 
   return cleaned;
+}
+
+// ─── 智能摘要提取 ────────────────────────────────────────────
+function extractSummary(description: string, title: string, sourceName: string): string {
+  const cleaned = cleanHTML(description);
+
+  // 对 36kr 摘要格式做特殊处理：摘要包含多个新闻条目
+  if (sourceName === '36氪') {
+    // 36kr 的描述通常是多个新闻的合集，尝试提取与标题相关的部分
+    const titleKeywords = title.replace(/[，。、；：！？\s]/g, ' ').split(' ').filter(w => w.length >= 2);
+    const paragraphs = cleaned.split(/[。！？\n]/).filter(s => s.trim().length > 5);
+
+    // 找到包含标题关键词最多的段落
+    let bestPara = '';
+    let bestScore = 0;
+    for (const para of paragraphs.slice(0, 10)) {
+      const score = titleKeywords.filter(kw => para.includes(kw)).length;
+      if (score > bestScore) {
+        bestScore = score;
+        bestPara = para;
+      }
+    }
+
+    if (bestPara && bestPara.trim().length > 15) {
+      return bestPara.trim().slice(0, 350);
+    }
+    // 找不到匹配段落，使用前几个有意义的句子
+    const meaningful = paragraphs.filter(p => p.trim().length > 15);
+    return meaningful.slice(0, 3).join('。').slice(0, 350) || '暂无摘要，请点击原文查看详情';
+  }
+
+  // 通用处理：取前几个有意义的句子
+  const sentences = cleaned.split(/[。！？.!?]/).filter(s => s.trim().length > 5);
+  const meaningful = sentences.filter(s => {
+    const t = s.trim();
+    // 过滤掉纯标签/导航文本
+    if (/^(大公司|新产品|投融资|其他|相关|推荐|阅读|查看|点击|扫码|关注|来源|作者|编辑)[：:：]/.test(t)) return false;
+    if (t.length < 10) return false;
+    return true;
+  });
+
+  const result = meaningful.slice(0, 3).join('。');
+  if (result.trim().length > 15) return result.slice(0, 350);
+  return cleaned.slice(0, 350) || '暂无摘要，请点击原文查看详情';
 }
 
 // ─── 关键词提取 ────────────────────────────────────────────────
@@ -163,14 +223,37 @@ function extractKeywords(query: string, title: string): string[] {
 
 function matchesQuery(itemTitle: string, itemDesc: string, query: string): boolean {
   if (!query) return true;
+
+  // 中文查询：检查标题或描述是否包含任意一个查询字词
+  if (/[\u4e00-\u9fff]/.test(query)) {
+    const haystack = `${itemTitle} ${itemDesc}`;
+    // 将查询拆分为单个汉字和词组
+    const chars = query.replace(/\s+/g, '').split('');
+    // 至少匹配 2 个汉字或查询中的连续片段
+    let matchCount = 0;
+    for (const char of chars) {
+      if (haystack.includes(char)) matchCount++;
+    }
+    // 中文查询：至少匹配 30% 的字符
+    return matchCount >= Math.max(2, chars.length * 0.3);
+  }
+
+  // 英文查询：不区分大小写，任一搜索词匹配即可
   const lower = query.toLowerCase();
-  const terms = lower.split(/\s+/);
+  const terms = lower.split(/\s+/).filter(t => t.length > 0);
   const haystack = `${itemTitle} ${itemDesc}`.toLowerCase();
-  // 至少匹配一个搜索词
-  return terms.some((term) => haystack.includes(term));
+
+  // 短词（<=2 字符）要求精确单词匹配
+  // 长词用子串匹配
+  return terms.some((term) => {
+    if (term.length <= 2) {
+      const wordRegex = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return wordRegex.test(haystack);
+    }
+    return haystack.includes(term);
+  });
 }
 
-// ─── 判断是否为中文查询 ───────────────────────────────────────
 function isChineseQuery(query: string): boolean {
   return /[\u4e00-\u9fff]/.test(query);
 }
@@ -188,7 +271,7 @@ function rssToArticle(
   return {
     id: `rss-${btoa(item.link)}`,
     title: cleanHTML(item.title) || '无标题',
-    summary: cleanHTML(item.description).slice(0, 350) || '暂无摘要，请点击原文查看详情',
+    summary: extractSummary(item.description, cleanHTML(item.title), sourceName),
     source: sourceName,
     sourceType,
     url: item.link,
@@ -252,6 +335,7 @@ export async function searchNews(
 
       for (const item of feedResults[i]) {
         if (articles.length >= maxResults) break;
+        // 中文查询或短查询时放宽匹配条件
         if (matchesQuery(item.title, item.description, query)) {
           const article = rssToArticle(item, source.type, source.name);
           article.tags = extractKeywords(query, article.title);
