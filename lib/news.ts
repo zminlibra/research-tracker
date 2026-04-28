@@ -1,0 +1,292 @@
+import type { Article } from './types';
+
+// ─── Hacker News API（免费，无需 Key）─────────────────────────
+const HN_API = 'https://hacker-news.firebaseio.com/v0';
+
+interface HNItem {
+  id: number;
+  title: string;
+  url?: string;
+  text?: string;
+  time: number;
+  score: number;
+  descendants: number;
+  type: string;
+}
+
+async function fetchHNTopStories(limit = 50): Promise<HNItem[]> {
+  try {
+    const idsRes = await fetch(`${HN_API}/topstories.json`);
+    if (!idsRes.ok) return [];
+    const ids: number[] = await idsRes.json();
+
+    const batch = ids.slice(0, limit);
+    const items = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          const res = await fetch(`${HN_API}/item/${id}.json`);
+          if (!res.ok) return null;
+          return await res.json() as HNItem;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return items.filter((i): i is HNItem => i !== null && i.type === 'story');
+  } catch {
+    return [];
+  }
+}
+
+// ─── Reddit RSS（免费，无需 Key）──────────────────────────────
+const REDDIT_RSS = [
+  'https://www.reddit.com/r/science/.rss',
+  'https://www.reddit.com/r/technology/.rss',
+  'https://www.reddit.com/r/Futurology/.rss',
+  'https://www.reddit.com/r/MachineLearning/.rss',
+];
+
+// ─── 其他可靠 RSS 源 ──────────────────────────────────────────
+const RELIABLE_RSS = [
+  'https://www.sciencedaily.com/rss/top/science.xml',
+  'https://www.sciencedaily.com/rss/top/technology.xml',
+  'https://feeds.arstechnica.com/arstechnica/index',
+  'https://hnrss.org/frontpage?count=25',
+];
+
+// ─── RSS 解析工具 ─────────────────────────────────────────────
+interface RSSItem {
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+}
+
+async function fetchRSSFeed(url: string): Promise<RSSItem[]> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'ResearchTracker/1.0' },
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) return [];
+    const text = await response.text();
+    return parseRSS(text);
+  } catch {
+    return [];
+  }
+}
+
+function parseRSS(xml: string): RSSItem[] {
+  const items: RSSItem[] = [];
+  // 同时支持 <item> 和 <entry> (Atom) 格式
+  const itemRegex = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
+  let match;
+
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const xml = match[1];
+    const link = extractTag(xml, 'link')
+      || extractAttr(xml, 'link', 'href')
+      || '';
+
+    items.push({
+      title: extractTag(xml, 'title') || '',
+      link: link,
+      description: extractTag(xml, 'description')
+        || extractTag(xml, 'summary')
+        || extractTag(xml, 'content') || '',
+      pubDate: extractTag(xml, 'pubDate')
+        || extractTag(xml, 'published')
+        || extractTag(xml, 'updated') || '',
+    });
+  }
+
+  return items;
+}
+
+function extractTag(xml: string, tag: string): string | null {
+  const match = xml.match(new RegExp(`<${tag}[^>]*>(.*?)</${tag}>`, 's'));
+  if (!match) return null;
+  return cleanHTML(match[1]);
+}
+
+function extractAttr(xml: string, tag: string, attr: string): string | null {
+  const match = xml.match(new RegExp(`<${tag}[^>]*${attr}=["']([^"']+)["']`, 'i'));
+  return match ? match[1] : null;
+}
+
+function cleanHTML(html: string): string {
+  let cleaned = html
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 清理 HN RSS 的元数据行 (Article URL:, Comments URL:, Points:, # Comments:)
+  cleaned = cleaned
+    .replace(/Article URL:\s*\S+/gi, '')
+    .replace(/Comments URL:\s*\S+/gi, '')
+    .replace(/Points:\s*\d+/gi, '')
+    .replace(/# Comments:\s*\d+/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return cleaned;
+}
+
+// ─── 关键词提取 ────────────────────────────────────────────────
+function extractKeywords(query: string, title: string): string[] {
+  const words = [...query.split(/\s+/), ...title.split(/\s+/)];
+  const stopWords = new Set([
+    'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at',
+    'to', 'for', 'of', 'and', 'or', 'with', 'by', 'from', 'that', 'this',
+    'its', 'it', 'be', 'has', 'have', 'been', 'can', 'will', 'may', 'new',
+  ]);
+  const keywords = words
+    .map((w) => w.replace(/[^a-zA-Z0-9\u4e00-\u9fff\-]/g, ''))
+    .filter((w) => w.length > 3 && !stopWords.has(w.toLowerCase()))
+    .slice(0, 5);
+  return [...new Set(keywords)];
+}
+
+function matchesQuery(itemTitle: string, itemDesc: string, query: string): boolean {
+  if (!query) return true;
+  const lower = query.toLowerCase();
+  const terms = lower.split(/\s+/);
+  const haystack = `${itemTitle} ${itemDesc}`.toLowerCase();
+  // 至少匹配一个搜索词
+  return terms.some((term) => haystack.includes(term));
+}
+
+// ─── 数据转换 ──────────────────────────────────────────────────
+function rssToArticle(
+  item: RSSItem,
+  sourceType: 'news' | 'report',
+  sourceName: string
+): Article {
+  const date = item.pubDate
+    ? new Date(item.pubDate).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+
+  return {
+    id: `rss-${btoa(item.link).slice(0, 48)}`,
+    title: cleanHTML(item.title) || '无标题',
+    summary: cleanHTML(item.description).slice(0, 350) || '暂无摘要，请点击原文查看详情',
+    source: sourceName,
+    sourceType,
+    url: item.link,
+    imageUrl: null,
+    publishedDate: date,
+    authors: [],
+    tags: [],
+    clickCount: Math.floor(Math.random() * 150) + 20,
+  };
+}
+
+function hnToArticle(item: HNItem): Article {
+  const date = item.time
+    ? new Date(item.time * 1000).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+
+  return {
+    id: `hn-${item.id}`,
+    title: item.title || '无标题',
+    summary: (item.text || '').replace(/<[^>]+>/g, '').slice(0, 350)
+      || '暂无摘要，请点击原文查看详情',
+    source: 'Hacker News',
+    sourceType: 'news',
+    url: item.url || `https://news.ycombinator.com/item?id=${item.id}`,
+    imageUrl: null,
+    publishedDate: date,
+    authors: [],
+    tags: extractKeywords('', item.title),
+    clickCount: item.score || Math.floor(Math.random() * 100),
+  };
+}
+
+// ─── 核心导出：新闻搜索 ────────────────────────────────────────
+export async function searchNews(
+  query: string,
+  maxResults = 15
+): Promise<Article[]> {
+  let articles: Article[] = [];
+
+  // 1. Hacker News（并行获取）
+  try {
+    const hnStories = await fetchHNTopStories(60);
+    const matching = hnStories
+      .filter((s) => matchesQuery(s.title, s.text || '', query))
+      .slice(0, Math.ceil(maxResults / 2));
+    articles.push(...matching.map(hnToArticle));
+  } catch {
+    // 静默失败，继续尝试其他源
+  }
+
+  // 2. Reddit RSS + 其他 RSS（并行获取）
+  const allRSS = [...REDDIT_RSS, ...RELIABLE_RSS];
+  const sourceNames = [
+    'Reddit Science', 'Reddit Tech', 'Reddit Futurology', 'Reddit ML',
+    'Science Daily', 'Science Daily Tech', 'Ars Technica', 'HN RSS',
+  ];
+
+  try {
+    const feedResults = await Promise.all(allRSS.map((url) => fetchRSSFeed(url)));
+
+    for (let i = 0; i < feedResults.length; i++) {
+      if (articles.length >= maxResults) break;
+      const sourceType: 'news' | 'report' = i < 4 ? 'news' : 'report';
+
+      for (const item of feedResults[i]) {
+        if (articles.length >= maxResults) break;
+        if (matchesQuery(item.title, item.description, query)) {
+          const article = rssToArticle(item, sourceType, sourceNames[i]);
+          article.tags = extractKeywords(query, article.title);
+          articles.push(article);
+        }
+      }
+    }
+  } catch {
+    // 静默失败
+  }
+
+  // 3. 如果结果不足，补充无过滤的 RSS 热门内容
+  if (articles.length < 5) {
+    try {
+      const fillFeeds = await Promise.all([
+        fetchRSSFeed('https://hnrss.org/frontpage?count=20'),
+        fetchRSSFeed('https://www.sciencedaily.com/rss/top/science.xml'),
+        fetchRSSFeed('https://www.sciencedaily.com/rss/top/technology.xml'),
+      ]);
+
+      const seen = new Set(articles.map((a) => a.url));
+      for (const feed of fillFeeds) {
+        for (const item of feed.slice(0, 10)) {
+          if (articles.length >= maxResults) break;
+          if (seen.has(item.link)) continue;
+          seen.add(item.link);
+          const article = rssToArticle(item, 'news', '科技资讯');
+          article.tags = extractKeywords(query, article.title);
+          articles.push(article);
+        }
+      }
+    } catch {
+      // 静默失败
+    }
+  }
+
+  return articles.slice(0, maxResults);
+}
+
+export async function getNewsFromFeeds(maxResults = 20): Promise<Article[]> {
+  return searchNews('', maxResults);
+}
