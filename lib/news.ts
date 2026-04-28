@@ -39,20 +39,25 @@ async function fetchHNTopStories(limit = 50): Promise<HNItem[]> {
   }
 }
 
-// ─── Reddit RSS（免费，无需 Key）──────────────────────────────
-const REDDIT_RSS = [
-  'https://www.reddit.com/r/science/.rss',
-  'https://www.reddit.com/r/technology/.rss',
-  'https://www.reddit.com/r/Futurology/.rss',
-  'https://www.reddit.com/r/MachineLearning/.rss',
-];
+// ─── RSS 源列表（移除 Reddit RSS，因其封禁云服务器 IP）────────
+interface RSSSource {
+  url: string;
+  name: string;
+  type: 'news' | 'report';
+}
 
-// ─── 其他可靠 RSS 源 ──────────────────────────────────────────
-const RELIABLE_RSS = [
-  'https://www.sciencedaily.com/rss/top/science.xml',
-  'https://www.sciencedaily.com/rss/top/technology.xml',
-  'https://feeds.arstechnica.com/arstechnica/index',
-  'https://hnrss.org/frontpage?count=25',
+const RSS_SOURCES: RSSSource[] = [
+  // 英文科技新闻
+  { url: 'https://hnrss.org/frontpage?count=25', name: 'Hacker News', type: 'news' },
+  { url: 'https://feeds.arstechnica.com/arstechnica/index', name: 'Ars Technica', type: 'news' },
+  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml', name: 'BBC Tech', type: 'news' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', name: 'NYT Tech', type: 'news' },
+  // 综合科技/科学
+  { url: 'https://www.sciencedaily.com/rss/top/science.xml', name: 'Science Daily', type: 'report' },
+  { url: 'https://www.sciencedaily.com/rss/top/technology.xml', name: 'Science Daily Tech', type: 'report' },
+  { url: 'https://www.wired.com/feed/rss', name: 'Wired', type: 'news' },
+  // 中文科技新闻
+  { url: 'https://36kr.com/feed', name: '36氪', type: 'news' },
 ];
 
 // ─── RSS 解析工具 ─────────────────────────────────────────────
@@ -66,7 +71,7 @@ interface RSSItem {
 async function fetchRSSFeed(url: string): Promise<RSSItem[]> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -132,7 +137,7 @@ function cleanHTML(html: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 清理 HN RSS 的元数据行 (Article URL:, Comments URL:, Points:, # Comments:)
+  // 清理 HN RSS 的元数据行
   cleaned = cleaned
     .replace(/Article URL:\s*\S+/gi, '')
     .replace(/Comments URL:\s*\S+/gi, '')
@@ -166,6 +171,11 @@ function matchesQuery(itemTitle: string, itemDesc: string, query: string): boole
   const haystack = `${itemTitle} ${itemDesc}`.toLowerCase();
   // 至少匹配一个搜索词
   return terms.some((term) => haystack.includes(term));
+}
+
+// ─── 判断是否为中文查询 ───────────────────────────────────────
+function isChineseQuery(query: string): boolean {
+  return /[\u4e00-\u9fff]/.test(query);
 }
 
 // ─── 数据转换 ──────────────────────────────────────────────────
@@ -220,8 +230,9 @@ export async function searchNews(
   maxResults = 15
 ): Promise<Article[]> {
   let articles: Article[] = [];
+  const chineseQuery = isChineseQuery(query);
 
-  // 1. Hacker News（并行获取）
+  // 1. Hacker News API
   try {
     const hnStories = await fetchHNTopStories(60);
     const matching = hnStories
@@ -229,27 +240,23 @@ export async function searchNews(
       .slice(0, Math.ceil(maxResults / 2));
     articles.push(...matching.map(hnToArticle));
   } catch {
-    // 静默失败，继续尝试其他源
+    // 静默失败
   }
 
-  // 2. Reddit RSS + 其他 RSS（并行获取）
-  const allRSS = [...REDDIT_RSS, ...RELIABLE_RSS];
-  const sourceNames = [
-    'Reddit Science', 'Reddit Tech', 'Reddit Futurology', 'Reddit ML',
-    'Science Daily', 'Science Daily Tech', 'Ars Technica', 'HN RSS',
-  ];
-
+  // 2. RSS 源（并行获取）
   try {
-    const feedResults = await Promise.all(allRSS.map((url) => fetchRSSFeed(url)));
+    const feedResults = await Promise.all(
+      RSS_SOURCES.map((source) => fetchRSSFeed(source.url))
+    );
 
     for (let i = 0; i < feedResults.length; i++) {
       if (articles.length >= maxResults) break;
-      const sourceType: 'news' | 'report' = i < 4 ? 'news' : 'report';
+      const source = RSS_SOURCES[i];
 
       for (const item of feedResults[i]) {
         if (articles.length >= maxResults) break;
         if (matchesQuery(item.title, item.description, query)) {
-          const article = rssToArticle(item, sourceType, sourceNames[i]);
+          const article = rssToArticle(item, source.type, source.name);
           article.tags = extractKeywords(query, article.title);
           articles.push(article);
         }
@@ -259,19 +266,19 @@ export async function searchNews(
     // 静默失败
   }
 
-  // 3. 如果结果不足，补充无过滤的 RSS 热门内容
-  if (articles.length < 5) {
+  // 3. 对于中文查询或无结果时，补充热门科技新闻（不按关键词过滤）
+  if (articles.length < 5 || chineseQuery) {
     try {
       const fillFeeds = await Promise.all([
         fetchRSSFeed('https://hnrss.org/frontpage?count=20'),
-        fetchRSSFeed('https://www.sciencedaily.com/rss/top/science.xml'),
         fetchRSSFeed('https://www.sciencedaily.com/rss/top/technology.xml'),
+        fetchRSSFeed('https://feeds.bbci.co.uk/news/technology/rss.xml'),
       ]);
 
       const seen = new Set(articles.map((a) => a.url));
       for (const feed of fillFeeds) {
-        for (const item of feed.slice(0, 10)) {
-          if (articles.length >= maxResults) break;
+        for (const item of feed) {
+          if (articles.length >= maxResults + 5) break;
           if (seen.has(item.link)) continue;
           seen.add(item.link);
           const article = rssToArticle(item, 'news', '科技资讯');
