@@ -7,5 +7,8 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+[vars]
+GEMINI_API_KEY = ""
+
 [observability]
 enabled = true

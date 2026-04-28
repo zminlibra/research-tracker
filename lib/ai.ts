@@ -9,19 +9,10 @@ const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemi
  * 本地开发时回退到 process.env。
  */
 async function getApiKey(): Promise<string> {
-  // 本地开发：process.env 可用
-  try {
-    const key = (process.env['GEMINI_API_KEY'] as string);
-    if (key) return key;
-  } catch { /* ignore */ }
-
-  // Cloudflare Workers：通过 getCloudflareContext 读取
-  try {
-    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
-    const ctx = await getCloudflareContext({ async: true });
-    const key = (ctx.env as Record<string, string>).GEMINI_API_KEY;
-    if (key) return key;
-  } catch { /* ignore */ }
+  // 通过 dot notation 让 Next.js 在构建时内联值
+  // （Cloudflare Pages 在构建时注入环境变量，但不会传递到 Worker 运行时）
+  const key = process.env.GEMINI_API_KEY;
+  if (key) return key;
 
   return '';
 }
