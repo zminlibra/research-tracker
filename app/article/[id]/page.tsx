@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import AIInsight from '@/components/AIInsight';
+import { getArxivById } from '@/lib/arxiv';
+import { getPaperById } from '@/lib/semantic-scholar';
+import { generateInsight } from '@/lib/ai';
+import { aggregateSearch } from '@/lib/search';
 import type { Article, AIInsight as AIInsightType } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -17,15 +21,31 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   let error: string | null = null;
 
   try {
-    const baseUrl = '';
-    const res = await fetch(`${baseUrl}/api/article/${id}`, { cache: 'no-store' });
-    const data = await res.json();
+    if (id.startsWith('ss-')) {
+      article = await getPaperById(id);
+    } else if (id.startsWith('arxiv-')) {
+      const arxivId = id.replace('arxiv-', '');
+      article = await getArxivById(arxivId);
+    } else if (id.startsWith('rss-') || id.startsWith('news-') || id.startsWith('hn-')) {
+      article = {
+        id,
+        title: '新闻/行业动态',
+        summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
+        source: '网络新闻',
+        sourceType: id.startsWith('news-') || id.startsWith('hn-') ? 'news' : 'report',
+        url: '#',
+        imageUrl: null,
+        publishedDate: new Date().toISOString().split('T')[0],
+        authors: [],
+        tags: [],
+        clickCount: 0,
+      };
+    }
 
-    if (data.error) {
-      error = data.error;
+    if (!article) {
+      error = '文章未找到';
     } else {
-      article = data.article;
-      insight = data.insight;
+      insight = await generateInsight(article.title, article.summary, article.sourceType);
     }
   } catch {
     error = '文章加载失败，请稍后重试';
@@ -34,13 +54,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   // 获取相关文章
   if (article && article.tags.length > 0) {
     try {
-      const baseUrl = '';
-      const res = await fetch(
-        `${baseUrl}/api/search?q=${encodeURIComponent(article.tags[0])}&page=1`,
-        { cache: 'no-store' }
-      );
-      const data = await res.json();
-      related = (data.articles || []).filter((a: Article) => a.id !== article!.id).slice(0, 5);
+      const result = await aggregateSearch(article.tags[0], 1, 10);
+      related = (result.articles || []).filter((a: Article) => a.id !== article!.id).slice(0, 5);
     } catch {
       // 相关文章加载失败不影响主流程
     }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
+import { aggregateSearch } from '@/lib/search';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,18 +31,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   let error: string | null = null;
 
   try {
-    const baseUrl = '';
-    const res = await fetch(
-      `${baseUrl}/api/search?q=${encodeURIComponent(query)}&page=${page}&sort=${sort}&source=${source}`,
-      { cache: 'no-store' }
-    );
-    const data = await res.json();
-    if (data.error) {
-      error = data.error;
-    } else {
-      articles = data.articles;
-      totalCount = data.totalCount;
-    }
+    const result = await aggregateSearch(query, page, 20, sort as any, source as any);
+    articles = result.articles;
+    totalCount = result.totalCount;
   } catch {
     error = '搜索服务暂时不可用，请稍后重试';
   }

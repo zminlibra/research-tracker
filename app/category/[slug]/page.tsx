@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
+import { aggregateSearch } from '@/lib/search';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,17 +39,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   let error: string | null = null;
 
   try {
-    const baseUrl = '';
-    const res = await fetch(
-      `${baseUrl}/api/search?q=${encodeURIComponent(keyword)}&sort=relevance`,
-      { cache: 'no-store' }
-    );
-    const data = await res.json();
-    if (data.error) {
-      error = data.error;
-    } else {
-      articles = data.articles;
-    }
+    const result = await aggregateSearch(keyword, 1, 20);
+    articles = result.articles;
   } catch {
     error = '数据加载失败';
   }

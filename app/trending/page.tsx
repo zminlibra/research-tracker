@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
+import { getTrendingArticles } from '@/lib/search';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,16 +24,7 @@ export default async function TrendingPage({ searchParams }: TrendingPageProps) 
   let error: string | null = null;
 
   try {
-    const baseUrl = '';
-    const queryParams = new URLSearchParams({ time });
-    if (category) queryParams.set('category', category);
-    const res = await fetch(`${baseUrl}/api/trending?${queryParams}`, { cache: 'no-store' });
-    const data = await res.json();
-    if (data.error) {
-      error = data.error;
-    } else {
-      articles = data.articles;
-    }
+    articles = await getTrendingArticles(category || undefined, time as 'week' | 'month' | 'quarter' | 'year');
   } catch {
     error = '数据加载失败，请稍后重试';
   }
