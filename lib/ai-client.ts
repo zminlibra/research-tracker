@@ -120,3 +120,92 @@ export async function translateChineseQueryClient(chineseQuery: string): Promise
 
   return callDeepSeek(prompt, 0.2, 100);
 }
+
+// ─── 动态热门搜索标签 ──────────────────────────────────────────
+export interface TrendingTag {
+  label: string;
+  query: string;
+}
+
+const TRENDING_TAGS_CACHE_KEY = 'trending_tags_cache';
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 小时
+
+/**
+ * 获取当前科技领域热门搜索标签。
+ * 优先使用 localStorage 缓存（6 小时有效），缓存过期后调用 DeepSeek 生成新标签。
+ */
+export async function getTrendingTags(): Promise<TrendingTag[]> {
+  // 尝试从缓存读取
+  try {
+    const cached = localStorage.getItem(TRENDING_TAGS_CACHE_KEY);
+    if (cached) {
+      const { tags, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL_MS && Array.isArray(tags) && tags.length > 0) {
+        return tags;
+      }
+    }
+  } catch { /* ignore */ }
+
+  // 缓存过期或不存在，调用 AI 生成
+  try {
+    const apiKey = getClientApiKey();
+    if (!apiKey) {
+      return getDefaultTrendingTags();
+    }
+
+    const prompt = `列出当前（2026年4月）全球科技领域最受关注的8个热门话题/技术方向。
+
+要求：
+1. 每个话题用中文标签（5-8个字）
+2. 同时提供对应的英文搜索关键词（用于在学术数据库/新闻源中搜索）
+3. 话题应该覆盖不同领域（AI、生物医药、能源、材料、量子、机器人等）
+4. 必须是当下真正热门的方向，不是泛泛而谈的经典话题
+
+请严格按以下JSON格式回复（不要输出任何其他内容）：
+[
+  {"label": "中文标签1", "query": "english search keywords 1"},
+  {"label": "中文标签2", "query": "english search keywords 2"},
+  {"label": "中文标签3", "query": "english search keywords 3"},
+  {"label": "中文标签4", "query": "english search keywords 4"},
+  {"label": "中文标签5", "query": "english search keywords 5"},
+  {"label": "中文标签6", "query": "english search keywords 6"},
+  {"label": "中文标签7", "query": "english search keywords 7"},
+  {"label": "中文标签8", "query": "english search keywords 8"}
+]`;
+
+    const text = await callDeepSeek(prompt, 0.7, 400);
+
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // 写入缓存
+        try {
+          localStorage.setItem(TRENDING_TAGS_CACHE_KEY, JSON.stringify({
+            tags: parsed,
+            timestamp: Date.now(),
+          }));
+        } catch { /* ignore */ }
+        return parsed;
+      }
+    }
+  } catch { /* ignore */ }
+
+  return getDefaultTrendingTags();
+}
+
+/**
+ * 默认热门标签（AI 不可用时的后备方案，定期手动更新）。
+ */
+function getDefaultTrendingTags(): TrendingTag[] {
+  return [
+    { label: '大型语言模型', query: 'large language model' },
+    { label: '固态电池', query: 'solid state battery' },
+    { label: '基因编辑', query: 'CRISPR gene editing' },
+    { label: '量子计算', query: 'quantum computing' },
+    { label: '自动驾驶', query: 'autonomous driving' },
+    { label: 'mRNA疫苗', query: 'mRNA vaccine' },
+    { label: '核聚变', query: 'nuclear fusion' },
+    { label: '脑机接口', query: 'brain computer interface' },
+  ];
+}
