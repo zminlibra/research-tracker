@@ -3,6 +3,7 @@ import AIAnalyzeButton from '@/components/AIAnalyzeButton';
 import ArticleTranslation from '@/components/ArticleTranslation';
 import { getArxivById } from '@/lib/arxiv';
 import { getPaperById } from '@/lib/semantic-scholar';
+import { getCrossRefByDoi } from '@/lib/crossref';
 import { aggregateSearch } from '@/lib/search';
 import type { Article } from '@/lib/types';
 
@@ -85,14 +86,40 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           clickCount: 0,
         };
       }
-    } else if (id.startsWith('news-')) {
+    } else if (id.startsWith('crossref-')) {
+      const doi = id.replace('crossref-', '');
+      article = await getCrossRefByDoi(doi);
+      if (!article) {
+        article = {
+          id,
+          title: '学术论文',
+          summary: '无法获取该论文详情，请点击下方链接访问原文。',
+          source: 'CrossRef',
+          sourceType: 'paper',
+          url: `https://doi.org/${doi}`,
+          imageUrl: null,
+          publishedDate: '',
+          authors: [],
+          tags: [],
+          clickCount: 0,
+        };
+      }
+    } else if (id.startsWith('web-') || id.startsWith('news-')) {
+      // 从 URL 编码的 ID 中解码原文 URL
+      let originalUrl = '#';
+      try {
+        const encoded = id.replace(/^(web|news)-/, '');
+        originalUrl = decodeURIComponent(encoded);
+      } catch {
+        // 无法解码，url 保持 #
+      }
       article = {
         id,
         title: '新闻/报道',
         summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
         source: '网络新闻',
         sourceType: 'news',
-        url: '#',
+        url: originalUrl,
         imageUrl: null,
         publishedDate: new Date().toISOString().split('T')[0],
         authors: [],

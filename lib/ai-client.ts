@@ -209,3 +209,101 @@ function getDefaultTrendingTags(): TrendingTag[] {
     { label: '脑机接口', query: 'brain computer interface' },
   ];
 }
+
+// ─── AI 查询扩展 ──────────────────────────────────────────────
+
+interface ExpandedQueries {
+  /** 优化后的主搜索查询 */
+  primary: string;
+  /** 替换关键词（同义词、相关术语） */
+  alternatives: string[];
+  /** 用于学术搜索的英文关键词 */
+  academic: string;
+  /** 用于新闻搜索的关键词 */
+  news: string;
+}
+
+const EXPANDED_QUERY_CACHE = new Map<string, ExpandedQueries>();
+
+/**
+ * 使用 AI 扩展用户的搜索查询。
+ * 生成优化的搜索词以覆盖更多相关结果。
+ * 自带内存缓存（会话级别），避免重复调用。
+ */
+export async function expandSearchQuery(rawQuery: string): Promise<ExpandedQueries> {
+  const cacheKey = rawQuery.toLowerCase().trim();
+  if (EXPANDED_QUERY_CACHE.has(cacheKey)) {
+    return EXPANDED_QUERY_CACHE.get(cacheKey)!;
+  }
+
+  try {
+    const apiKey = getClientApiKey();
+    if (!apiKey) {
+      return simpleExpand(rawQuery);
+    }
+
+    const prompt = `你是一个搜索查询优化专家。请分析以下用户输入的搜索词，生成优化的搜索查询。
+
+用户搜索词：${rawQuery}
+
+请严格按以下JSON格式回复（不要输出任何其他内容）：
+{
+  "primary": "优化后的主搜索查询（修正拼写、添加关键修饰词，英文）",
+  "alternatives": ["替换搜索词1", "替换搜索词2", "替换搜索词3"],
+  "academic": "用于学术论文数据库搜索的英文关键词（正式术语，用空格分隔）",
+  "news": "用于新闻/网页搜索的英文关键词（侧重应用和行业，用空格分隔）"
+}
+
+规则：
+- 如果用户输入是中文，primary/academic/news 必须翻译为英文
+- primary 应该是 3-8 个词的精炼搜索短语
+- alternatives 是 2-3 个不同角度的搜索词
+- academic 使用正式学术术语
+- news 使用更通俗的行业术语`;
+
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-v4-flash',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        max_tokens: 400,
+      }),
+    });
+
+    if (!response.ok) {
+      return simpleExpand(rawQuery);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || '';
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const result: ExpandedQueries = {
+        primary: parsed.primary || rawQuery,
+        alternatives: parsed.alternatives || [],
+        academic: parsed.academic || rawQuery,
+        news: parsed.news || rawQuery,
+      };
+      EXPANDED_QUERY_CACHE.set(cacheKey, result);
+      return result;
+    }
+  } catch { /* ignore */ }
+
+  return simpleExpand(rawQuery);
+}
+
+function simpleExpand(query: string): ExpandedQueries {
+  return {
+    primary: query,
+    alternatives: [],
+    academic: query,
+    news: query,
+  };
+}
