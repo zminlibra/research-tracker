@@ -4,13 +4,8 @@ import { searchSemanticScholar } from './semantic-scholar';
 import { searchCrossRef } from './crossref';
 import { searchNews, getNewsFromFeeds } from './news';
 import { searchWeb } from './web-search';
-import { translateChineseQuery } from './ai';
 
 // ─── 工具函数 ──────────────────────────────────────────────────
-
-function isChineseQuery(q: string): boolean {
-  return /[\u4e00-\u9fff]/.test(q);
-}
 
 /** 基于标题相似度去重 */
 function deduplicate(articles: Article[]): Article[] {
@@ -70,16 +65,7 @@ export async function aggregateSearch(
 ): Promise<SearchResult> {
   const start = (page - 1) * pageSize;
   const apiMax = Math.min(pageSize * 3, 30);
-  const isChinese = isChineseQuery(query);
-
-  // 中文查询 → 翻译成英文关键词用于学术搜索
-  let academicQuery = query;
-  if (isChinese) {
-    const translated = await translateChineseQuery(query);
-    if (translated) {
-      academicQuery = translated;
-    }
-  }
+  const academicQuery = query;
 
   const articlesMap = new Map<string, Article[]>();
 

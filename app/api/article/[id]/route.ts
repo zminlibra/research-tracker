@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaperById } from '@/lib/semantic-scholar';
 import { getArxivById } from '@/lib/arxiv';
-import { generateInsight } from '@/lib/ai';
 import type { Article } from '@/lib/types';
 
 export async function GET(
@@ -95,10 +94,7 @@ export async function GET(
       );
     }
 
-    // 生成 AI 洞察
-    const insight = await generateInsight(article.title, article.summary, article.sourceType);
-
-    return NextResponse.json({ article, insight });
+    return NextResponse.json({ article });
   } catch (error) {
     console.error('Article detail error:', error);
     return NextResponse.json(

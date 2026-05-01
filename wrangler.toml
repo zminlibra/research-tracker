@@ -7,8 +7,5 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
-[vars]
-DEEPSEEK_API_KEY = ""
-
 [observability]
 enabled = true
