@@ -1,38 +1,62 @@
 import { NextResponse } from 'next/server';
+import { searchNews } from '@/lib/news';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const info: Record<string, unknown> = {};
 
-  info['has_process'] = typeof process !== 'undefined';
-  info['has_process_env'] = typeof process !== 'undefined' && typeof process.env !== 'undefined';
-
-  // 读取 process.env 基本信息
+  // 测试 searchNews — 模拟新闻源测试
   try {
-    if (typeof process !== 'undefined' && process.env) {
-      info['process_env_key_count'] = Object.keys(process.env).length;
-      info['process_env_keys_sample'] = Object.keys(process.env).slice(0, 20);
-    }
+    const q = 'test';
+    const results = await searchNews(q, 15);
+    const bySource: Record<string, number> = {};
+    results.forEach((a) => {
+      bySource[a.source] = (bySource[a.source] || 0) + 1;
+    });
+    info['searchNews'] = {
+      query: q,
+      total: results.length,
+      bySource,
+      items: results.map((a) => ({
+        source: a.source,
+        title: a.title.slice(0, 80),
+        url: a.url.slice(0, 60),
+      })),
+    };
   } catch (e) {
-    info['process_env_error'] = String(e);
+    info['searchNews_error'] = String(e);
   }
 
-  // 尝试 getCloudflareContext
-  try {
-    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
-    const ctx = await getCloudflareContext({ async: true });
-
-    info['has_cloudflare_context'] = true;
-    info['has_cloudflare_env'] = !!ctx.env;
-
-    if (ctx.env) {
-      const envKeys = Object.keys(ctx.env);
-      info['cloudflare_env_key_count'] = envKeys.length;
-      info['cloudflare_env_keys'] = envKeys;
+  // 直接测试 RSS 源
+  info['rss_tests'] = {};
+  const sources = [
+    { url: 'https://hnrss.org/frontpage?count=3', name: 'hnrss.org' },
+    { url: 'https://feeds.arstechnica.com/arstechnica/index', name: 'Ars Technica' },
+    { url: 'https://www.sciencedaily.com/rss/top/technology.xml', name: 'Science Daily Tech' },
+    { url: 'https://www.wired.com/feed/rss', name: 'Wired' },
+    { url: 'https://36kr.com/feed', name: '36kr' },
+  ];
+  for (const src of sources) {
+    try {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 5000);
+      const res = await fetch(src.url, {
+        signal: ctrl.signal,
+        headers: { 'User-Agent': 'ResearchTracker/1.0' },
+      });
+      const text = await res.text().catch(() => '');
+      const itemCount = (text.match(/<(?:item|entry)>/gi) || []).length;
+      (info['rss_tests'] as Record<string, unknown>)[src.name] = {
+        ok: res.ok,
+        status: res.status,
+        items: itemCount,
+      };
+    } catch (e: any) {
+      (info['rss_tests'] as Record<string, unknown>)[src.name] = {
+        error: e.message || String(e),
+      };
     }
-  } catch (e) {
-    info['cloudflare_context_error'] = String(e);
   }
 
   return NextResponse.json(info);
