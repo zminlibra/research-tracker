@@ -154,7 +154,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             {sourceKeys.map((key) => (
               <Link key={key} href={buildUrl({ source: key })}>
                 <Badge variant={source === key ? 'default' : 'secondary'}
-                  className={`${source !== key ? 'cursor-pointer hover:bg-accent' : 'cursor-default'} ${source === key ? 'bg-secondary' : ''}`}>
+                  className={source !== key ? 'cursor-pointer hover:bg-accent' : 'cursor-default'}>
                   {sourceLabels[key]}
                 </Badge>
               </Link>
