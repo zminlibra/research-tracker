@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: '使用帮助 — ResearchTracker',
+  description: '了解如何使用 ResearchTracker 搜索学术文献、追踪行业动态、对比论文以及使用 AI 分析功能。',
+};
 
 export default function HelpPage() {
   return (

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
 import { aggregateSearch } from '@/lib/search';
@@ -16,6 +17,21 @@ const CATEGORY_INFO: Record<string, { name: string; description: string; keyword
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ q?: string }>;
+}
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const info = CATEGORY_INFO[slug];
+  if (info) {
+    return {
+      title: `${info.name} — ResearchTracker`,
+      description: info.description,
+    };
+  }
+  return {
+    title: '领域分类 — ResearchTracker',
+    description: '浏览各领域科研动态',
+  };
 }
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {

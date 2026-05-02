@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
 import { aggregateSearch } from '@/lib/search';
@@ -9,6 +10,11 @@ import FavoriteButton from '@/components/FavoriteButton';
 import CompareButton from '@/components/CompareButton';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '搜索 — ResearchTracker',
+  description: '搜索全球科研论文和行业新闻动态，涵盖 arXiv、PubMed、OpenAlex、Hacker News 等多个来源。',
+};
 
 interface SearchPageProps {
   searchParams: Promise<{

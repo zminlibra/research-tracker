@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
 import { getTrendingArticles } from '@/lib/search';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '热门排行 — ResearchTracker',
+  description: '查看本周、本月、本季度、本年度科研论文和行业资讯的热门排行，了解最新研究趋势。',
+};
 
 const TIME_RANGES = [
   { key: 'week', label: '本周' },

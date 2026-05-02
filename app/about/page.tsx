@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: '关于本站 — ResearchTracker',
+  description: 'ResearchTracker 是一个全球科研与行业发展动态追踪平台，聚合 arXiv、PubMed、OpenAlex、Hacker News 等多源数据。',
+};
 
 export default function AboutPage() {
   return (

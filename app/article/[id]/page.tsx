@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import AIAnalyzeButton from '@/components/AIAnalyzeButton';
 import ArticleTranslation from '@/components/ArticleTranslation';
 import ChatWithPaper from '@/components/ChatWithPaper';
@@ -15,6 +16,25 @@ import { Separator } from '@/components/ui/separator';
 
 export const dynamic = 'force-dynamic';
 
+function generateArticleSchema(article: Article): Record<string, unknown> {
+  const schemaType = article.sourceType === 'paper' ? 'ScholarlyArticle' : 'Article';
+  const result: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': schemaType,
+    'headline': article.title,
+    'url': `https://researchtracker.win/article/${article.id}`,
+  };
+  if (article.summary) result.description = article.summary.slice(0, 300);
+  if (article.authors.length > 0) {
+    result.author = article.authors.map((name) => ({ '@type': 'Person', name }));
+  }
+  if (article.publishedDate) result.datePublished = article.publishedDate;
+  if (article.source) {
+    result.publisher = { '@type': 'Organization', name: article.source };
+  }
+  return result;
+}
+
 interface ArticlePageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{
@@ -28,6 +48,27 @@ interface ArticlePageProps {
     url?: string;
     clicks?: string;
   }>;
+}
+
+export async function generateMetadata({ searchParams }: ArticlePageProps): Promise<Metadata> {
+  const sp = await searchParams;
+  if (sp.title) {
+    const desc = (sp.summary || '').slice(0, 160).trim() || `阅读来自 ${sp.source || '学术来源'} 的文章`;
+    return {
+      title: `${sp.title.slice(0, 60)} — ResearchTracker`,
+      description: desc,
+      openGraph: {
+        title: sp.title.slice(0, 60),
+        description: desc,
+        type: 'article',
+        url: sp.url || undefined,
+      },
+    };
+  }
+  return {
+    title: '文章详情 — ResearchTracker',
+    description: '科研与行业发展动态追踪平台',
+  };
 }
 
 export default async function ArticlePage({ params, searchParams }: ArticlePageProps) {
@@ -191,6 +232,10 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <ReadingTracker article={article} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateArticleSchema(article)) }}
+      />
       {/* 面包屑 */}
       <nav className="text-sm text-muted-foreground mb-6">
         <Link href="/" className="hover:text-primary transition-colors">首页</Link>
