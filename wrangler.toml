@@ -9,3 +9,10 @@ binding = "ASSETS"
 
 [observability]
 enabled = true
+
+# OpenAlex API Key（Freemium，每日 $1 免费额度 = ~1000 次搜索）
+# 本地开发：从 .env.local 或 .dev.vars 读取（均已 gitignore）
+# Cloudflare Pages 生产：在 Dashboard → Settings → Environment Variables 中配置
+# 详见 .env.local 和 .dev.vars.example 文件
+# [vars]
+# OPENALEX_API_KEY = "your-key-here"

@@ -1,15 +1,63 @@
 /**
  * OpenAlex 学术元数据 API 封装。
  *
- * API 文档：https://api.openalex.org
- * 完全免费，无需 API Key，覆盖全球 2 亿+ 学术论文、会议论文、书籍等。
- * 数据质量高，元数据丰富（DOI、作者、机构、期刊、引用量等）。
+ * API 文档：https://developers.openalex.org/
+ * Freemium 模式：需 API Key，每日 $1 免费额度（约 1000 次搜索）。
+ * 数据覆盖全球 2 亿+ 学术论文、会议论文、书籍等。
  */
 
 import type { Article } from './types';
 
 const OPENALEX_API = 'https://api.openalex.org';
-const MAILTO = 'research-tracker@example.com';
+const MAILTO = 'zminlibra@gmail.com';
+
+/**
+ * 从环境变量读取 OpenAlex API Key。
+ * 本地开发：.env.local 中配置 OPENALEX_API_KEY
+ * Cloudflare Pages：在 Dashboard → Settings → Environment Variables 中配置
+ */
+function getApiKey(): string | undefined {
+  // Node / Next.js 环境
+  if (typeof process !== 'undefined' && process.env?.OPENALEX_API_KEY) {
+    return process.env.OPENALEX_API_KEY as string;
+  }
+  return undefined;
+}
+
+/**
+ * 构建带认证和字段筛选的 URL。
+ * - api_key：认证（来自环境变量）
+ * - mailto：礼貌性标识（帮助 OpenAlex 联系开发者）
+ * - select：只拉取 toArticle() 实际使用的字段，减小响应体积
+ */
+function buildUrl(path: string, params: URLSearchParams): string {
+  const apiKey = getApiKey();
+  if (apiKey) {
+    params.set('api_key', apiKey);
+  }
+  params.set('mailto', MAILTO);
+  return `${OPENALEX_API}${path}?${params.toString()}`;
+}
+
+/**
+ * toArticle() 实际使用的字段清单，通过 select 参数只拉这些字段。
+ * 完整字段列表：https://developers.openalex.org/docs/fields
+ */
+const SELECT_FIELDS = [
+  'id',
+  'doi',
+  'title',
+  'abstract_inverted_index',
+  'authorships',
+  'publication_date',
+  'publication_year',
+  'locations',
+  'host_venue',
+  'topics',
+  'cited_by_count',
+  'type',
+  'language',
+].join(',');
 
 /**
  * 搜索 OpenAlex 论文。
@@ -26,12 +74,11 @@ export async function searchOpenAlex(
   chineseOnly = false,
 ): Promise<Article[]> {
   try {
-    // OpenAlex 使用 page + per-page 分页（不是 offset）
     const params = new URLSearchParams({
       search: query,
       'per-page': String(Math.min(perPage, 100)),
       page: String(page),
-      mailto: MAILTO,
+      select: SELECT_FIELDS,
     });
 
     // 注入中文机构过滤（作者团队中至少一人来自中国高校/研究所）
@@ -39,31 +86,31 @@ export async function searchOpenAlex(
       params.set('filter', 'authorships.institutions.country_code:CN');
     }
 
-    const url = `${OPENALEX_API}/works?${params.toString()}`;
+    const url = buildUrl('/works', params);
 
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'ResearchTracker/1.0 (https://researchtracker.win; mailto:' + MAILTO + ')',
+        'User-Agent': `ResearchTracker/1.0 (mailto:${MAILTO})`,
         'Accept': 'application/json',
       },
     });
 
     if (!res.ok) {
-      console.error('[OpenAlex] HTTP error:', res.status, res.statusText);
+      const body = await res.text().catch(() => '');
+      console.error(`[OpenAlex] HTTP ${res.status}: ${res.statusText}`, body.slice(0, 200));
       return [];
     }
 
     const data = await res.json();
-    const results = data.results || [];
+    const results: Record<string, unknown>[] = data.results || [];
 
     if (results.length === 0) {
-      // API 返回成功但无结果
       return [];
     }
 
     return results.map(toArticle);
   } catch (error) {
-    console.error('[OpenAlex] fetch error:', error);
+    console.error('[OpenAlex] search error:', error);
     return [];
   }
 }
@@ -73,19 +120,25 @@ export async function searchOpenAlex(
  */
 export async function getOpenAlexById(id: string): Promise<Article | null> {
   try {
-    // id 格式：openalex-W2021099440 或 W2021099440
-    const workId = id.replace('openalex-', '').replace('https://openalex.org/', '');
-    const url = `${OPENALEX_API}/works/${workId}?mailto=${MAILTO}`;
+    // id 格式：openalex-W2021099440 或 W2021099440 或 https://openalex.org/W2021099440
+    const workId = id
+      .replace('openalex-', '')
+      .replace('https://openalex.org/', '')
+      .replace(/^W/, 'W');
+
+    const params = new URLSearchParams({ select: SELECT_FIELDS });
+    const url = buildUrl(`/works/${workId}`, params);
 
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'ResearchTracker/1.0 (https://researchtracker.win; mailto:' + MAILTO + ')',
+        'User-Agent': `ResearchTracker/1.0 (mailto:${MAILTO})`,
         'Accept': 'application/json',
       },
     });
 
     if (!res.ok) {
-      console.error('[OpenAlex] fetchById HTTP error:', res.status);
+      const body = await res.text().catch(() => '');
+      console.error('[OpenAlex] fetchById HTTP', res.status, body.slice(0, 200));
       return null;
     }
 
