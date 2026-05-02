@@ -63,6 +63,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     arxiv: 'arXiv',
     pubmed: 'PubMed',
     openalex: 'OpenAlex',
+    ieee: 'IEEE',
     news: '新闻/报道',
   };
   const sourceKeys = Object.keys(sourceLabels);

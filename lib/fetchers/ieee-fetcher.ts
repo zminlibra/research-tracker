@@ -2,8 +2,7 @@
  * IEEE Xplore API 数据源实现。
  *
  * API 文档：https://developer.ieee.org/docs
- * 需要 API Key（免费申请，秒批）。
- * 用户需在设置页填入自己的 Key，遵循"不给别人买单"原则。
+ * API Key 通过环境变量 IEEE_API_KEY 配置（本地 .env.local，Cloudflare Pages 设置）。
  */
 
 import type { Article } from '../types';
@@ -13,25 +12,26 @@ import { getCached, setCached, makeCacheKey } from '../cache';
 const IEEE_API = 'https://ieeexploreapi.ieee.org/api/v1/search/articles';
 
 /**
- * 从 localStorage 读取用户的 IEEE API Key。
- * 服务端渲染时返回空字符串（Key 仅在客户端可用）。
+ * 从环境变量读取 IEEE API Key。
+ * 兼容 Node.js / Next.js / Cloudflare Workers 两种运行时。
  */
 export function getIEEEKey(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    return localStorage.getItem('ieee_api_key') || '';
-  } catch {
-    return '';
-  }
+  const nodeKey =
+    typeof process !== 'undefined' ? (process.env?.IEEE_API_KEY as string | undefined) : undefined;
+  const globalKey =
+    typeof globalThis !== 'undefined'
+      ? ((globalThis as Record<string, unknown>).IEEE_API_KEY as string | undefined)
+      : undefined;
+  return (nodeKey || globalKey || '').trim();
 }
 
+/** 兼容旧调用（设置页可能用到），直接返回当前环境变量中的 Key。 */
 export function saveIEEEKey(key: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem('ieee_api_key', key.trim());
-  } catch { /* ignore */ }
+  // 服务端无法持久化保存；设置页如需保留，请改用环境变量。
+  void key;
 }
 
+/** 兼容旧调用 */
 export function hasIEEEKey(): boolean {
   return getIEEEKey().length > 0;
 }

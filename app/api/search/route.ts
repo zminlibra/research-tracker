@@ -6,7 +6,15 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get('q') || '';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const sortBy = (searchParams.get('sort') as 'relevance' | 'date' | 'clicks') || 'relevance';
-  const source = (searchParams.get('source') as 'all' | 'paper' | 'news') || 'all';
+  const source =
+    (searchParams.get('source') as
+      | 'all'
+      | 'paper'
+      | 'news'
+      | 'arxiv'
+      | 'pubmed'
+      | 'openalex'
+      | 'ieee') || 'all';
   const chinese = searchParams.get('chinese') === '1';
 
   if (!query.trim()) {

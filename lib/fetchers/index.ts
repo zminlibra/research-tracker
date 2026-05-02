@@ -51,10 +51,11 @@ export async function aggregateSearch(
   // 根据 sourceFilter 过滤数据源
   const activeFetchers = sourceFilter && sourceFilter !== 'all'
     ? defaultFetchers.filter((f) => {
-        // 精确匹配三大学术来源
+        // 精确匹配学术来源
         if (sourceFilter === 'arxiv')   return f.name === 'arXiv';
         if (sourceFilter === 'pubmed')  return f.name === 'PubMed';
         if (sourceFilter === 'openalex') return f.name === 'OpenAlex';
+        if (sourceFilter === 'ieee')    return f.name === 'IEEE Xplore';
         // 兼容旧的逻辑分组
         if (sourceFilter === 'paper') return f.sourceType === 'paper';
         if (sourceFilter === 'news')  return f.sourceType === 'news';
