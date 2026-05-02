@@ -78,6 +78,20 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     return 'bg-secondary text-secondary-foreground border-transparent';
   }
 
+  // 计算标题与搜索词的相似度（判断是否高度匹配）
+  function isTitleMatch(title: string, query: string): boolean {
+    const t = title.toLowerCase().replace(/\s+/g, ' ');
+    const q = query.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!q) return false;
+    // 完全匹配或查询词包含在标题中且覆盖大部分标题
+    if (t === q) return true;
+    if (t.includes(q)) return true;
+    // 分词匹配：查询词的所有 token 都在标题中出现且比例高
+    const qTokens = q.split(/\s+/).filter(w => w.length > 1);
+    if (qTokens.length >= 3 && qTokens.every(w => t.includes(w))) return true;
+    return false;
+  }
+
   // 构建带筛选参数的 URL
   const buildUrl = (overrides: Record<string, string>) => {
     const p = new URLSearchParams();
@@ -173,13 +187,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       {!error && articles.length > 0 && (
         <div className="space-y-4">
-          {articles.map((article) => (
-            <Card key={article.id} className="hover:shadow-md transition-shadow group">
+          {articles.map((article) => {
+            const matched = isTitleMatch(article.title, query);
+            return (
+            <Card key={article.id} className={`hover:shadow-md transition-shadow group ${matched ? 'ring-2 ring-primary/60 bg-primary/[0.03]' : ''}`}>
               <CardContent className="p-5">
                 <Link
                   href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent((article.summary || '').slice(0, 2000))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`}
                 >
-                  <h3 className="text-base font-semibold group-hover:text-primary transition-colors mb-2 leading-snug">
+                  <h3 className={`text-base font-semibold group-hover:text-primary transition-colors mb-2 leading-snug ${matched ? 'text-primary' : ''}`}>
+                    {matched && <span className="mr-1.5 text-xs align-middle">★</span>}
                     {article.title}
                   </h3>
                 </Link>
@@ -216,7 +233,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
+
 
           {/* 分页 */}
           {totalPages > 1 && (

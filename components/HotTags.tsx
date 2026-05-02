@@ -56,8 +56,12 @@ export default function HotTags() {
     return () => clearInterval(timer);
   }, []);
 
+  const handleRefresh = () => {
+    setTags(getRandomTags(8));
+  };
+
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="flex flex-wrap justify-center items-center gap-2">
       {tags.map((tag) => (
         <Link key={tag.query} href={`/search?q=${encodeURIComponent(tag.query)}`}>
           <Badge
@@ -68,6 +72,13 @@ export default function HotTags() {
           </Badge>
         </Link>
       ))}
+      <button
+        onClick={handleRefresh}
+        title="刷新热门标签"
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-white/30 text-white/60 hover:text-white hover:border-white/60 hover:bg-white/10 transition-colors text-sm"
+      >
+        ↻
+      </button>
     </div>
   );
 }
