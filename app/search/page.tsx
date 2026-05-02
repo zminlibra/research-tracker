@@ -4,8 +4,7 @@ import { aggregateSearch } from '@/lib/search';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import SearchFilters from '@/components/SearchFilters';
 import FavoriteButton from '@/components/FavoriteButton';
 import CompareButton from '@/components/CompareButton';
 
@@ -126,49 +125,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
             高级筛选 ▾
           </summary>
-          <form className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3"
-            onSubmit={(e) => { e.preventDefault(); }}>
-            <div className="space-y-1">
-              <Label htmlFor="yearFrom" className="text-xs text-muted-foreground">起始年份</Label>
-              <Input id="yearFrom" type="number" placeholder="如 2020"
-                defaultValue={params.yearFrom || ''}
-                className="h-8 text-sm"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v) window.location.href = buildUrl({ yearFrom: v, page: '1' });
-                }} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="yearTo" className="text-xs text-muted-foreground">截止年份</Label>
-              <Input id="yearTo" type="number" placeholder="如 2026"
-                defaultValue={params.yearTo || ''}
-                className="h-8 text-sm"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v) window.location.href = buildUrl({ yearTo: v, page: '1' });
-                }} />
-            </div>
-            <div className="space-y-1 col-span-2 sm:col-span-1">
-              <Label htmlFor="author" className="text-xs text-muted-foreground">作者名</Label>
-              <Input id="author" type="text" placeholder="如 Smith"
-                defaultValue={author}
-                className="h-8 text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const v = (e.target as HTMLInputElement).value;
-                    window.location.href = buildUrl({ author: v, page: '1' });
-                  }
-                }} />
-            </div>
-            {/* 清除筛选 */}
-            {(params.yearFrom || params.yearTo || author) && (
-              <div className="flex items-end">
-                <Link href={`/search?q=${encodeURIComponent(query)}`} className="text-xs text-destructive hover:underline pb-1">
-                  清除筛选
-                </Link>
-              </div>
-            )}
-          </form>
+          <div className="mt-3">
+            <SearchFilters
+              defaultYearFrom={params.yearFrom || ""}
+              defaultYearTo={params.yearTo || ""}
+              defaultAuthor={author}
+            />
+          </div>
         </details>
       </div>
 
