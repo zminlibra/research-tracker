@@ -62,10 +62,11 @@ export class PubMedFetcher implements Fetcher {
       const pmids: string[] = searchData.esearchresult?.idlist || [];
       if (pmids.length === 0) return [];
 
-      // 2. ESummary：获取每篇文章的摘要元数据
-      const summary = await fetchSummaries(pmids, apiKey);
-      // 3. EFetch：获取摘要（ESummary 不含 abstract，需单独获取）
-      const abstracts = await fetchPubmedAbstracts(pmids, apiKey);
+      // 2. ESummary + EFetch 并发执行，节省时间；EFetch 失败不影响主流程
+      const [summary, abstracts] = await Promise.all([
+        fetchSummaries(pmids, apiKey),
+        fetchPubmedAbstracts(pmids, apiKey).catch(() => ({})),
+      ]);
       const articles = pmids
         .map((pmid) => summary[pmid])
         .filter(Boolean)
@@ -87,10 +88,12 @@ export class PubMedFetcher implements Fetcher {
 
     try {
       const apiKey = getPubMedKey();
-      const summary = await fetchSummaries([pmid], apiKey);
+      const [summary, abstracts] = await Promise.all([
+        fetchSummaries([pmid], apiKey),
+        fetchPubmedAbstracts([pmid], apiKey).catch(() => ({})),
+      ]);
       const item = summary[pmid];
       if (!item) return null;
-      const abstracts = await fetchPubmedAbstracts([pmid], apiKey);
       const article = toArticle(item, abstracts);
       setCached(cacheKey, article, 60 * 60 * 1000);
       return article;
@@ -121,8 +124,28 @@ async function fetchSummaries(
 }
 
 /**
+ * 带超时保护的 Promise。
+ * Cloudflare Workers 环境需要防止外部 API 响应过慢导致请求超时。
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+/**
  * 批量获取 PubMed 摘要（通过 EFetch API 返回 XML）。
  * EFetch 支持一次请求获取多篇文章的摘要，XML 中每个 Article 标签含 AbstractText。
+ * 含超时保护（8秒），超时则返回空，不阻塞搜索主流程。
  */
 async function fetchPubmedAbstracts(
   pmids: string[],
@@ -139,8 +162,12 @@ async function fetchPubmedAbstracts(
       ...(apiKey ? { api_key: apiKey } : {}),
     });
 
-    const res = await fetchWithRateLimit(`${PUBMED_FETCH}?${params}`);
-    if (!res.ok) return {};
+    // 带超时兜底的 fetch（避免 Cloudflare Workers 超时）
+    const res = await withTimeout(
+      fetchWithRateLimit(`${PUBMED_FETCH}?${params}`),
+      8000
+    );
+    if (!res || !res.ok) return {};
     const xml = await res.text();
 
     const result: Record<string, string> = {};
