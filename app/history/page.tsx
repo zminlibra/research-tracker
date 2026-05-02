@@ -74,14 +74,14 @@ export default function HistoryPage() {
                       </Badge>
                       <span className="text-xs text-muted-foreground">{article.source}</span>
                     </div>
-                    <Link href={`/article/${article.id}`} className="text-sm font-medium hover:text-primary transition-colors line-clamp-2">
+                    <Link href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`} className="text-sm font-medium hover:text-primary transition-colors line-clamp-2">
                       {article.title}
                     </Link>
                     <p className="text-xs text-muted-foreground mt-1">
                       阅读于 {new Date(viewedAt).toLocaleString('zh-CN')}
                     </p>
                   </div>
-                  <Link href={`/article/${article.id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-8 px-3 text-xs">
+                  <Link href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-8 px-3 text-xs">
                     查看
                   </Link>
                 </div>

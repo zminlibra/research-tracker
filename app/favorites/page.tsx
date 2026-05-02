@@ -63,7 +63,7 @@ export default function FavoritesPage() {
               <CardContent className="p-4 flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <Link
-                    href={`/article/${article.id}`}
+                    href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`}
                     className="font-medium text-sm hover:text-primary transition-colors line-clamp-1"
                   >
                     {article.title}

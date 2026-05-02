@@ -19,120 +19,147 @@ export const dynamic = 'force-dynamic';
 
 interface ArticlePageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    title?: string;
+    source?: string;
+    date?: string;
+    authors?: string;
+    tags?: string;
+    summary?: string;
+    type?: string;
+    url?: string;
+    clicks?: string;
+  }>;
 }
 
-export default async function ArticlePage({ params }: ArticlePageProps) {
+export default async function ArticlePage({ params, searchParams }: ArticlePageProps) {
   const { id } = await params;
+  const sp = await searchParams;
 
   let article: Article | null = null;
   let related: Article[] = [];
   let error: string | null = null;
 
-  try {
-    if (id.startsWith('ss-')) {
-      // Semantic Scholar
-      try { article = await getPaperById(id); } catch {}
-      if (!article) {
-        const ssId = id.replace('ss-', '');
-        article = {
-          id, title: '学术论文', summary: '该内容来自 Semantic Scholar。详细信息请点击下方"查看原文"链接获取完整论文。',
-          source: 'Semantic Scholar', sourceType: 'paper',
-          url: `https://www.semanticscholar.org/paper/${ssId}`,
-          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
-        };
-      }
-    } else if (id.startsWith('arxiv-')) {
-      const arxivId = id.replace('arxiv-', '');
-      try { article = await getArxivById(arxivId); } catch {}
-      if (!article) {
-        article = {
-          id, title: 'arXiv 学术论文', summary: '该内容来自 arXiv。详细信息请点击下方"查看原文"链接获取完整论文。',
-          source: 'arXiv', sourceType: 'paper',
-          url: `https://arxiv.org/abs/${arxivId}`,
-          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
-        };
-      }
-    } else if (id.startsWith('rss-')) {
-      // RSS / 新闻源
-      let originalUrl = '#';
-      try {
-        originalUrl = atob(id.replace('rss-', ''));
-      } catch { /* ignore */ }
-      article = {
-        id, title: '新闻/报道', summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
-        source: '网络新闻', sourceType: 'news', url: originalUrl, imageUrl: null,
-        publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
-      };
-    } else if (id.startsWith('hn-')) {
-      // Hacker News
-      const hnId = id.replace('hn-', '');
-      try {
-        const hnRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${hnId}.json`, { signal: AbortSignal.timeout(5000) });
-        if (hnRes.ok) {
-          const hnItem = await hnRes.json();
-          if (hnItem && hnItem.title) {
-            article = {
-              id, title: hnItem.title,
-              summary: (hnItem.text || '').replace(/<[^>]+>/g, '').slice(0, 500) || '暂无摘要，请点击原文查看详情',
-              source: 'Hacker News', sourceType: 'news',
-              url: hnItem.url || `https://news.ycombinator.com/item?id=${hnId}`,
-              imageUrl: null, publishedDate: hnItem.time ? new Date(hnItem.time * 1000).toISOString().split('T')[0] : '',
-              authors: [], tags: [], clickCount: hnItem.score || 0,
-            };
-          }
-        }
-      } catch { /* ignore */ }
-      // hn- 永远有兜底
-      if (!article) {
-        article = {
-          id, title: 'Hacker News 讨论', summary: '该内容来自 Hacker News。详细信息请点击下方"查看原文"链接。',
-          source: 'Hacker News', sourceType: 'news',
-          url: `https://news.ycombinator.com/item?id=${hnId}`,
-          imageUrl: null, publishedDate: new Date().toISOString().split('T')[0],
-          authors: [], tags: [], clickCount: 0,
-        };
-      }
-    } else if (id.startsWith('crossref-')) {
-      const doi = id.replace('crossref-', '');
-      try { article = await getCrossRefByDoi(doi); } catch {}
-      if (!article) {
-        article = {
-          id, title: '学术论文', summary: '无法获取该论文详情，请点击下方链接访问原文。',
-          source: 'CrossRef', sourceType: 'paper',
-          url: `https://doi.org/${doi}`, imageUrl: null, publishedDate: '',
-          authors: [], tags: [], clickCount: 0,
-        };
-      }
-    } else if (id.startsWith('pubmed-')) {
-      const pmid = id.replace('pubmed-', '');
-      article = {
-        id, title: 'PubMed 学术论文', summary: '该内容来自 PubMed。详细信息请点击下方"查看原文"链接获取完整论文。',
-        source: 'PubMed', sourceType: 'paper',
-        url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
-        imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
-      };
-    } else if (id.startsWith('web-') || id.startsWith('news-')) {
-      let originalUrl = '#';
-      try {
-        const encoded = id.replace(/^(web|news)-/, '');
-        originalUrl = decodeURIComponent(encoded);
-      } catch { /* ignore */ }
-      article = {
-        id, title: '新闻/报道', summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
-        source: '网络新闻', sourceType: 'news', url: originalUrl, imageUrl: null,
-        publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
-      };
-    } else {
-      // 未知 ID 格式：尝试当作 arXiv ID 处理
-      try { article = await getArxivById(id); } catch {}
-      if (!article) {
-        error = '文章未找到';
-      }
-    }
-  } catch {
-    error = '文章加载失败，请稍后重试';
+  // ─── 策略一：优先使用 URL 参数（从搜索结果页传递过来）─────────
+  if (sp.title) {
+    article = {
+      id,
+      title: sp.title,
+      summary: sp.summary || '',
+      source: sp.source || '',
+      sourceType: (sp.type as 'paper' | 'news') || 'paper',
+      url: sp.url || '#',
+      imageUrl: null,
+      publishedDate: sp.date || '',
+      authors: sp.authors ? sp.authors.split(',').filter(Boolean) : [],
+      tags: sp.tags ? sp.tags.split(',').filter(Boolean) : [],
+      clickCount: sp.clicks ? parseInt(sp.clicks) : 0,
+    };
   }
 
+  // ─── 策略二：URL 参数没有，尝试从 API 获取 ──────────────────
+  if (!article) {
+    try {
+      if (id.startsWith('ss-')) {
+        try { article = await getPaperById(id); } catch {}
+        if (!article) {
+          const ssId = id.replace('ss-', '');
+          article = {
+            id, title: 'Semantic Scholar 论文', summary: '该内容来自 Semantic Scholar。详细信息请点击下方"查看原文"链接获取完整论文。',
+            source: 'Semantic Scholar', sourceType: 'paper',
+            url: `https://www.semanticscholar.org/paper/${ssId}`,
+            imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+          };
+        }
+      } else if (id.startsWith('arxiv-')) {
+        const arxivId = id.replace('arxiv-', '');
+        try { article = await getArxivById(arxivId); } catch {}
+        if (!article) {
+          article = {
+            id, title: 'arXiv 学术论文', summary: '该内容来自 arXiv。详细信息请点击下方"查看原文"链接获取完整论文。',
+            source: 'arXiv', sourceType: 'paper',
+            url: `https://arxiv.org/abs/${arxivId}`,
+            imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+          };
+        }
+      } else if (id.startsWith('rss-')) {
+        let originalUrl = '#';
+        try { originalUrl = atob(id.replace('rss-', '')); } catch { /* ignore */ }
+        article = {
+          id, title: '新闻/报道', summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
+          source: '网络新闻', sourceType: 'news', url: originalUrl, imageUrl: null,
+          publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
+        };
+      } else if (id.startsWith('hn-')) {
+        const hnId = id.replace('hn-', '');
+        try {
+          const hnRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${hnId}.json`, { signal: AbortSignal.timeout(5000) });
+          if (hnRes.ok) {
+            const hnItem = await hnRes.json();
+            if (hnItem && hnItem.title) {
+              article = {
+                id, title: hnItem.title,
+                summary: (hnItem.text || '').replace(/<[^>]+>/g, '').slice(0, 500) || '暂无摘要，请点击原文查看详情',
+                source: 'Hacker News', sourceType: 'news',
+                url: hnItem.url || `https://news.ycombinator.com/item?id=${hnId}`,
+                imageUrl: null, publishedDate: hnItem.time ? new Date(hnItem.time * 1000).toISOString().split('T')[0] : '',
+                authors: [], tags: [], clickCount: hnItem.score || 0,
+              };
+            }
+          }
+        } catch { /* ignore */ }
+        if (!article) {
+          article = {
+            id, title: 'Hacker News 讨论', summary: '该内容来自 Hacker News。详细信息请点击下方"查看原文"链接。',
+            source: 'Hacker News', sourceType: 'news',
+            url: `https://news.ycombinator.com/item?id=${hnId}`,
+            imageUrl: null, publishedDate: new Date().toISOString().split('T')[0],
+            authors: [], tags: [], clickCount: 0,
+          };
+        }
+      } else if (id.startsWith('crossref-')) {
+        const doi = id.replace('crossref-', '');
+        try { article = await getCrossRefByDoi(doi); } catch {}
+        if (!article) {
+          article = {
+            id, title: '学术论文', summary: '无法获取该论文详情，请点击下方链接访问原文。',
+            source: 'CrossRef', sourceType: 'paper',
+            url: `https://doi.org/${doi}`, imageUrl: null, publishedDate: '',
+            authors: [], tags: [], clickCount: 0,
+          };
+        }
+      } else if (id.startsWith('pubmed-')) {
+        const pmid = id.replace('pubmed-', '');
+        article = {
+          id, title: 'PubMed 学术论文', summary: '该内容来自 PubMed。详细信息请点击下方"查看原文"链接获取完整论文。',
+          source: 'PubMed', sourceType: 'paper',
+          url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+        };
+      } else if (id.startsWith('web-') || id.startsWith('news-')) {
+        let originalUrl = '#';
+        try {
+          const encoded = id.replace(/^(web|news)-/, '');
+          originalUrl = decodeURIComponent(encoded);
+        } catch { /* ignore */ }
+        article = {
+          id, title: '新闻/报道', summary: '该内容来自网络新闻源。详细信息请点击下方"查看原文"链接获取完整报道。',
+          source: '网络新闻', sourceType: 'news', url: originalUrl, imageUrl: null,
+          publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
+        };
+      } else {
+        // 未知格式：当作 arXiv ID 尝试
+        try { article = await getArxivById(id); } catch {}
+        if (!article) {
+          error = '文章未找到';
+        }
+      }
+    } catch {
+      error = '文章加载失败，请稍后重试';
+    }
+  }
+
+  // ─── 相关推荐 ────────────────────────────────────────────────
   if (article && article.tags.length > 0) {
     try {
       const result = await aggregateSearch(article.tags[0], 1, 10);
@@ -171,14 +198,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-4">
           <span>来源：{article.source}</span>
-          <span>发布日期：{article.publishedDate}</span>
+          {article.publishedDate && <span>发布日期：{article.publishedDate}</span>}
           {article.authors.length > 0 && <span>作者：{article.authors.join(', ')}</span>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {article.tags.map((tag) => (
             <Link key={tag} href={`/search?q=${encodeURIComponent(tag)}`}>
-              <Badge variant="secondary" className="cursor-pointer hover:bg-accent">
+              <Badge variant="secondary" className="cursor-pointer hover:bg-accent text-white bg-secondary/70 border border-secondary/30 hover:bg-secondary/90">
                 {tag}
               </Badge>
             </Link>
@@ -203,13 +230,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <CardContent className="pt-6">
           <h2 className="font-bold text-lg mb-3">内容摘要</h2>
           <p className="text-muted-foreground leading-relaxed text-sm whitespace-pre-line">
-            {article.summary}
+            {article.summary || '暂无摘要'}
           </p>
         </CardContent>
       </Card>
 
       {/* 中文翻译 */}
-      {/[\u4e00-\u9fff]/.test(article.summary) === false && article.summary.length > 30 && (
+      {article.summary && !/[\u4e00-\u9fff]/.test(article.summary) && article.summary.length > 30 && (
         <div className="mb-6"><ArticleTranslation text={article.summary} /></div>
       )}
 
@@ -231,7 +258,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             <ul className="space-y-3">
               {related.map((r) => (
                 <li key={r.id}>
-                  <Link href={`/article/${r.id}`} className="block text-sm hover:text-primary transition-colors line-clamp-1">
+                  <Link href={`/article/${r.id}?title=${encodeURIComponent(r.title)}&source=${encodeURIComponent(r.source)}&date=${encodeURIComponent(r.publishedDate)}&authors=${encodeURIComponent(r.authors.join(','))}&tags=${encodeURIComponent(r.tags.join(','))}&summary=${encodeURIComponent(r.summary.slice(0, 500))}&type=${encodeURIComponent(r.sourceType)}&url=${encodeURIComponent(r.url)}&clicks=${r.clickCount}`} className="block text-sm hover:text-primary transition-colors line-clamp-1">
                     {r.title}
                   </Link>
                   <p className="text-xs text-muted-foreground mt-0.5">

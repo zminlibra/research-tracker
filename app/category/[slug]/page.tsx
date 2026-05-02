@@ -85,7 +85,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {articles.map((article) => (
             <article key={article.id} className="bg-white rounded-lg border border-border hover:shadow-md transition-shadow p-5">
-              <Link href={`/article/${article.id}`}>
+              <Link href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`}>
                 <h3 className="text-base font-semibold text-secondary hover:text-primary transition-colors mb-2 line-clamp-2 leading-snug">
                   {article.title}
                 </h3>

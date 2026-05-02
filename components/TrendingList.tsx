@@ -21,7 +21,7 @@ export default function TrendingList({ articles, showRank = true, title }: Trend
       <ul className="divide-y divide-border">
         {articles.map((article, index) => (
           <li key={article.id} className="hover:bg-bg-light transition-colors">
-            <Link href={`/article/${article.id}`} className="flex items-start gap-3 px-4 py-3">
+            <Link href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`} className="flex items-start gap-3 px-4 py-3">
               {showRank && (
                 <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   index < 3 ? 'bg-primary text-white' : 'bg-gray-100 text-text-muted'

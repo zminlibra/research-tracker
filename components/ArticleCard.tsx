@@ -44,7 +44,7 @@ export default function ArticleCard({ article, showImage = true }: ArticleCardPr
         <div className="flex-1 p-4 flex flex-col justify-between">
           <div>
             {/* 标题 */}
-            <Link href={`/article/${article.id}`}>
+            <Link href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`}>
               <h3 className="text-base font-semibold text-secondary hover:text-primary transition-colors line-clamp-2 mb-2 leading-snug">
                 {article.title}
               </h3>

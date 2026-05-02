@@ -66,7 +66,7 @@ export default async function TrendingPage({ searchParams }: TrendingPageProps) 
           <ul className="divide-y divide-border">
             {articles.map((article, index) => (
               <li key={article.id} className="hover:bg-bg-light transition-colors">
-                <Link href={`/article/${article.id}`} className="flex items-start gap-4 px-5 py-4">
+                <Link href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent(article.summary.slice(0, 500))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`} className="flex items-start gap-4 px-5 py-4">
                   {/* 排名 */}
                   <div className="flex-shrink-0 w-10 text-center">
                     {index < 3 ? (

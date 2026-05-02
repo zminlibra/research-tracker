@@ -128,7 +128,7 @@ export default function ComparePage() {
               {articles.map((a) => (
                 <td key={a.id} className="p-3">
                   <div className="flex flex-col gap-1">
-                    <Link href={`/article/${a.id}`}>
+                    <Link href={`/article/${a.id}?title=${encodeURIComponent(a.title)}&source=${encodeURIComponent(a.source)}&date=${encodeURIComponent(a.publishedDate)}&authors=${encodeURIComponent(a.authors.join(','))}&tags=${encodeURIComponent(a.tags.join(','))}&summary=${encodeURIComponent(a.summary.slice(0, 500))}&type=${encodeURIComponent(a.sourceType)}&url=${encodeURIComponent(a.url)}&clicks=${a.clickCount}`}>
                       <Button variant="outline" size="sm" className="w-full">查看详情</Button>
                     </Link>
                     <a href={a.url} target="_blank" rel="noopener noreferrer">
