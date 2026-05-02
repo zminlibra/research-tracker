@@ -54,7 +54,7 @@ export default async function HomePage() {
                 更多 &gt;
               </Link>
             </div>
-            <TrendingList articles={hotPapers.slice(0, 8)} showRank={true} />
+            <TrendingList articles={hotNews.slice(0, 8)} showRank={true} />
           </div>
 
           {/* 最新文献 */}
