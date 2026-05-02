@@ -13,15 +13,20 @@ const MAILTO = 'zminlibra@gmail.com';
 
 /**
  * 从环境变量读取 OpenAlex API Key。
- * 本地开发：.env.local 中配置 OPENALEX_API_KEY
- * Cloudflare Pages：在 Dashboard → Settings → Environment Variables 中配置
+ * 兼容多种运行时环境：Node.js、Cloudflare Workers、Next.js Edge
  */
 function getApiKey(): string | undefined {
-  // Node / Next.js 环境
-  if (typeof process !== 'undefined' && process.env?.OPENALEX_API_KEY) {
-    return process.env.OPENALEX_API_KEY as string;
+  // 兼容多种运行时：Node.js / Next.js / Cloudflare Workers
+  const nodeKey = typeof process !== 'undefined' ? (process.env?.OPENALEX_API_KEY as string | undefined) : undefined;
+  const globalKey = typeof globalThis !== 'undefined' ? ((globalThis as Record<string, unknown>).OPENALEX_API_KEY as string | undefined) : undefined;
+  const key = nodeKey || globalKey;
+
+  if (key) {
+    console.log('[OpenAlex] API Key loaded (length:', key.length, ')');
+  } else {
+    console.warn('[OpenAlex] API Key not found in environment variables');
   }
-  return undefined;
+  return key;
 }
 
 /**
@@ -87,6 +92,8 @@ export async function searchOpenAlex(
     }
 
     const url = buildUrl('/works', params);
+
+    console.log('[OpenAlex] Request URL:', url.replace(/api_key=[^&]+/, 'api_key=***'));
 
     const res = await fetch(url, {
       headers: {
