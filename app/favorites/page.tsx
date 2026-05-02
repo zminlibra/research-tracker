@@ -51,7 +51,9 @@ export default function FavoritesPage() {
         <Card>
           <CardContent className="py-16 text-center">
             <p className="text-muted-foreground mb-4">暂无收藏</p>
-            <Button asChild><Link href="/">去搜索论文 →</Link></Button>
+            <Link href="/" className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">
+              去搜索论文 →
+            </Link>
           </CardContent>
         </Card>
       ) : (

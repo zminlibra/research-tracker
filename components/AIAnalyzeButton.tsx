@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import AIInsight from '@/components/AIInsight';
-import { generateClientInsight, getClientApiKey, saveClientApiKey, clearClientApiKey } from '@/lib/ai-client';
+import { generateInsight, getClientApiKey, saveClientApiKey, clearClientApiKey } from '@/lib/ai-client';
 import type { AIInsight as AIInsightType } from '@/lib/types';
+import AIInsight from '@/components/AIInsight';
 
 interface AIAnalyzeButtonProps {
   title: string;
@@ -29,7 +29,7 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
     setError(null);
 
     try {
-      const result = await generateClientInsight(title, abstract, sourceType);
+      const result = await generateInsight(title, abstract);
       setInsight(result);
     } catch (e) {
       const msg = String(e);
@@ -91,7 +91,7 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
   if (loading) {
     return (
       <div className="mb-8">
-        <AIInsight insight={{ summary: '', analysis: '', keyPoints: [] }} loading={true} />
+        <AIInsight insight={{ coreContribution: '', methodology: '', keyResults: '', limitations: '' }} loading={true} />
       </div>
     );
   }

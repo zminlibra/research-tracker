@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/auth-store';
 
-export default function FavoriteButton({ articleId }: { articleId: string }) {
+interface FavoriteButtonProps {
+  articleId: string;
+}
+
+export default function FavoriteButton({ articleId }: FavoriteButtonProps) {
   const [active, setActive] = useState(false);
 
   useEffect(() => {

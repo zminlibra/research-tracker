@@ -149,19 +149,15 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             </Link>
           ))}
           <CompareButton article={article} />
-          <FavoriteButton
-            articleId={article.id}
-            title={article.title}
-            source={article.source}
-            sourceType={article.sourceType}
-            publishedDate={article.publishedDate}
-            url={article.url}
-          />
-          <Button asChild size="sm" className="ml-auto">
-            <a href={article.url} target="_blank" rel="noopener noreferrer">
-              查看原文 ↗
-            </a>
-          </Button>
+          <FavoriteButton articleId={article.id} />
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto text-xs text-primary hover:underline flex items-center gap-1 flex-shrink-0"
+          >
+            查看原文 ↗
+          </a>
         </div>
       </div>
 

@@ -222,3 +222,39 @@ export async function generateInsight(
 
   return sections;
 }
+
+// ─── 中译英翻译 ────────────────────────────────────────────────
+export async function translateToChineseClient(text: string): Promise<string> {
+  if (typeof window === 'undefined') return '';
+
+  const apiKey = getClientApiKey();
+  if (!apiKey) {
+    throw new Error('NO_API_KEY');
+  }
+
+  const prompt = `请将以下英文内容翻译为中文，保持学术风格，准确翻译专业术语：\n\n${text}`;
+
+  const response = await fetch(DEEPSEEK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 1500,
+      temperature: 0.3,
+    }),
+  });
+
+  if (response.status === 402 || response.status === 429) {
+    throw new Error('DEEPSEEK_QUOTA_EXHAUSTED');
+  }
+  if (!response.ok) {
+    throw new Error(`API_ERROR:${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content?.trim() || '';
+}

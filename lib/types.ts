@@ -20,9 +20,10 @@ export interface SearchResult {
 }
 
 export interface AIInsight {
-  summary: string;
-  analysis: string;
-  keyPoints: string[];
+  coreContribution: string;
+  methodology: string;
+  keyResults: string;
+  limitations: string;
 }
 
 export interface Category {

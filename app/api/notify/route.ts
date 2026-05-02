@@ -3,6 +3,7 @@ import { aggregateSearch } from '@/lib/search';
 
 interface NotifyUser {
   email: string;
+  notifyEmail?: string;
   notifyKeywords: string[];
   notifyFrequency: 'daily' | 'weekly';
   notifyEnabled: boolean;

@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { getTrendingTags, getClientApiKey } from '@/lib/ai-client';
-import type { TrendingTag } from '@/lib/ai-client';
 import { Badge } from '@/components/ui/badge';
+
+interface TrendingTag {
+  label: string;
+  query: string;
+}
 
 const DEFAULT_TAGS: TrendingTag[] = [
   { label: '大型语言模型', query: 'large language model' },
@@ -18,34 +21,14 @@ const DEFAULT_TAGS: TrendingTag[] = [
 ];
 
 export default function HotTags() {
-  const [tags, setTags] = useState<TrendingTag[]>(DEFAULT_TAGS);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (getClientApiKey()) {
-      setLoading(true);
-      getTrendingTags()
-        .then(setTags)
-        .catch(() => { /* keep defaults */ })
-        .finally(() => setLoading(false));
-    }
-  }, []);
+  const [tags] = useState<TrendingTag[]>(DEFAULT_TAGS);
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
-      <span className="text-white/70 text-sm">
-        {loading ? '加载热门搜索...' : '热门搜索：'}
-      </span>
+    <div className="flex flex-wrap gap-2">
       {tags.map((tag) => (
-        <Link
-          key={tag.query}
-          href={`/search?q=${encodeURIComponent(tag.query)}`}
-        >
-          <Badge
-            variant="secondary"
-            className="cursor-pointer bg-white/80 hover:bg-white text-primary border-primary/20 hover:border-primary/40 transition-all"
-          >
-            {tag.label}
+        <Link key={tag.query} href={`/search?q=${encodeURIComponent(tag.query)}`}>
+          <Badge variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors text-sm">
+            🔥 {tag.label}
           </Badge>
         </Link>
       ))}

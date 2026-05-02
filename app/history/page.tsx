@@ -25,7 +25,9 @@ export default function HistoryPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
         <p className="text-muted-foreground mb-4">请先登录查看阅读历史</p>
-        <Button asChild><Link href="/login">登录</Link></Button>
+        <Link href="/login" className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">
+          登录
+        </Link>
       </div>
     );
   }
@@ -79,9 +81,9 @@ export default function HistoryPage() {
                       阅读于 {new Date(viewedAt).toLocaleString('zh-CN')}
                     </p>
                   </div>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link href={`/article/${article.id}`}>查看</Link>
-                  </Button>
+                  <Link href={`/article/${article.id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-8 px-3 text-xs">
+                    查看
+                  </Link>
                 </div>
               </CardContent>
             </Card>
