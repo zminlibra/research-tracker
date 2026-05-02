@@ -38,20 +38,34 @@ export default function AboutPage() {
 
       <section className="bg-white rounded-lg border border-border p-6 mb-6">
         <h2 className="text-lg font-bold text-secondary mb-3">数据来源</h2>
-        <ul className="text-sm text-text-secondary space-y-1.5">
-          <li><strong>arXiv</strong> — 全球最大的学术预印本平台</li>
-          <li><strong>OpenAlex</strong> — 开放学术元数据（覆盖 2 亿+ 论文）</li>
-          <li><strong>PubMed</strong> — 生物医学文献数据库</li>
-          <li><strong>Hacker News</strong> — 全球科技社区热门讨论</li>
-          <li><strong>Reddit</strong> — r/science、r/technology 等科技板块</li>
-        </ul>
+        <div className="text-sm text-text-secondary space-y-3">
+          <div>
+            <p className="font-semibold text-secondary mb-1">学术论文</p>
+            <ul className="space-y-1">
+              <li><strong>arXiv</strong> — 全球最大的学术预印本平台（数理化 + CS + AI）</li>
+              <li><strong>OpenAlex</strong> — 开放学术元数据（覆盖 2 亿+ 论文）</li>
+              <li><strong>PubMed</strong> — 生物医学文献数据库（NCBI 官方 API）</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-semibold text-secondary mb-1">科技新闻</p>
+            <ul className="space-y-1">
+              <li><strong>Hacker News</strong> — 全球科技社区热门讨论</li>
+              <li><strong>Ars Technica</strong> — 深度科技报道与评测</li>
+              <li><strong>Science Daily</strong> — 最新科研进展报道</li>
+              <li><strong>Wired</strong> — 科技文化与趋势</li>
+              <li><strong>36氪</strong> — 中国科技商业资讯</li>
+              <li><strong>SearXNG</strong> — 聚合 Google / Bing 等网页搜索</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
       <section className="bg-white rounded-lg border border-border p-6">
         <h2 className="text-lg font-bold text-secondary mb-3">关于 AI 洞察</h2>
         <p className="text-text-secondary leading-relaxed text-sm">
           平台内置了基于规则的智能摘要功能，可以对文章内容进行初步分析。
-          如需更深入的 AI 洞察，可以配置 Claude API Key 来启用大语言模型驱动的深度分析。
+          如需更深入的 AI 洞察，可以配置 DeepSeek API Key 来启用大语言模型驱动的深度分析。
         </p>
       </section>
 

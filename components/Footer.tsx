@@ -21,8 +21,9 @@ export default function Footer() {
             <ul className="text-sm space-y-1.5 text-gray-400">
               <li>arXiv — 学术预印本</li>
               <li>OpenAlex — 全球学术元数据（2 亿+ 论文）</li>
-              <li>PubMed — 学术文献</li>
-              <li>Hacker News / 科技新闻</li>
+              <li>PubMed — 生物医学文献</li>
+              <li>SearXNG — 聚合网页搜索</li>
+              <li>多元 RSS 科技新闻源</li>
             </ul>
           </div>
 

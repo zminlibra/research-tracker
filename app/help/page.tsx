@@ -24,7 +24,7 @@ export default function HelpPage() {
           </li>
           <li className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mt-2" />
-            <span><strong>新闻报道</strong>：来自 Hacker News、Reddit 等平台的科技资讯，适合了解行业动态</span>
+            <span><strong>新闻报道</strong>：来自 Hacker News、Ars Technica、Science Daily、Wired、36氪 等多源科技资讯</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-orange-500 rounded-full mt-2" />
@@ -37,7 +37,7 @@ export default function HelpPage() {
         <h2 className="text-lg font-bold text-secondary mb-3">搜索技巧</h2>
         <ul className="text-sm text-text-secondary space-y-2 list-disc list-inside">
           <li>使用<strong>英文关键词</strong>可以获得更多学术论文结果（arXiv、PubMed 等主要索引英文内容）</li>
-          <li>使用<strong>中文关键词</strong>可以获得更多新闻报道（Google News 支持中文搜索）</li>
+          <li>使用<strong>中文关键词</strong>可以通过 SearXNG 获得更多中文新闻报道</li>
           <li>尝试不同的排序方式：<strong>按热度</strong>看最受关注的内容，<strong>按时间</strong>看最新进展</li>
           <li>使用领域分类页面快速浏览特定领域的热门内容</li>
         </ul>
@@ -47,7 +47,7 @@ export default function HelpPage() {
         <h2 className="text-lg font-bold text-secondary mb-3">AI 洞察功能</h2>
         <p className="text-sm text-text-secondary leading-relaxed">
           文章详情页的 AI 洞察功能会对文章内容进行自动总结和深度分析。
-          默认使用基于规则的分析；配置 Claude API Key 后可获得更深入的 AI 驱动分析。
+          默认使用基于规则的分析；配置 DeepSeek API Key 后可获得更深入的 AI 驱动分析。
         </p>
       </section>
 
