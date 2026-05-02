@@ -109,41 +109,64 @@ export async function aggregateSearch(
 }
 
 // ─── 重排序评分函数 ─────────────────────────────────────────────
-// 综合：语义相关度（如有）+ 时间衰减 + 引用量（如有）
+// 核心策略：各来源加权固定，关键词匹配锦上添花，避免摘要长度造成的不公平
 function rerankScore(article: import('../types').Article, query: string): number {
   let score = 0;
 
-  // 1. 关键词相关度（基础分）
-  const q = query.toLowerCase();
-  const haystack = `${article.title} ${article.summary}`.toLowerCase();
-  const queryTerms = q.split(/\s+/).filter((t: string) => t.length > 1);
-  for (const term of queryTerms) {
-    const count = (haystack.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
-    const inTitle = article.title.toLowerCase().includes(term);
-    score += count + (inTitle ? 5 : 0);
-  }
-
-  // 2. 来源权威性加分（重要：OpenAlex 覆盖所有期刊，给其额外加权以平衡 arXiv 预印本优势）
+  // ── 1. 来源权威性（核心加权，固定值）────────────────────────
+  // 正式期刊 > 预印本，确保各来源论文都有展示机会
   const idLower = article.id.toLowerCase();
-  if (idLower.startsWith('openalex-')) {
-    score += 15; // OpenAlex 论文加权，使来自正式期刊的论文有机会出现在前排
-  }
-  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'PubMed'];
-  if (authoritySources.some((s) => article.source.includes(s))) {
-    score += 3;
+  const srcLower = article.source.toLowerCase();
+
+  if (idLower.startsWith('pubmed-') || srcLower.includes('pubmed')) {
+    // PubMed：同行评审生物医学文献，对合成生物学用户高度相关
+    score += 50;
+  } else if (idLower.startsWith('openalex-')) {
+    // OpenAlex：含期刊名 → 正式期刊论文；无期刊名 → 可能是会议/预印本
+    score += article.source && article.source !== 'OpenAlex' ? 40 : 25;
+  } else if (idLower.startsWith('arxiv-') || srcLower.includes('arxiv')) {
+    // arXiv：预印本，质量参差，降低权重
+    score += 5;
+  } else if (srcLower.includes('ieee') || srcLower.includes('acm')) {
+    // IEEE/ACM：工程技术权威来源
+    score += 35;
+  } else {
+    // Web / News 等其他来源
+    score += 0;
   }
 
-  // 3. 时间衰减（越新越好，以 2020 年为基准）
-  if (article.publishedDate) {
-    const year = parseInt(article.publishedDate.slice(0, 4));
-    if (!isNaN(year)) {
-      const age = Math.max(0, 2026 - year);
-      score += Math.max(0, 10 - age); // 近 10 年内的文章加分
+  // ── 2. 关键词相关度（标题匹配加权，摘要仅作补充）────────────
+  const q = query.toLowerCase();
+  const queryTerms = q.split(/\s+/).filter((t: string) => t.length > 1);
+
+  // 标题中命中关键词（最重要，权重高）
+  for (const term of queryTerms) {
+    if (article.title.toLowerCase().includes(term)) {
+      score += 3; // 每命中一个关键词 +3
     }
   }
 
-  // 4. 点击量（热度）加分
-  score += Math.log1p(article.clickCount || 0) * 2;
+  // 摘要中命中关键词（仅统计有实质内容的摘要，防止 placeholder 占优）
+  const summaryLen = (article.summary || '').length;
+  if (summaryLen > 50) {
+    const summary = article.summary.toLowerCase();
+    for (const term of queryTerms) {
+      const count = (summary.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
+      score += count * 0.5; // 摘要中每命中一次 +0.5（权重很低，避免长摘要碾压）
+    }
+  }
+
+  // ── 3. 时间新鲜度（近 3 年 +5，越老衰减越多）──────────────
+  if (article.publishedDate) {
+    const year = parseInt(article.publishedDate.slice(0, 4));
+    if (!isNaN(year) && year >= 2020) {
+      const age = 2026 - year;
+      score += Math.max(0, 5 - age); // 2024-2026 → +5~+2，2020 → +1
+    }
+  }
+
+  // ── 4. 引用量（高质量论文加分）────────────────────────────
+  score += Math.log1p(article.clickCount || 0) * 0.3;
 
   return score;
 }
