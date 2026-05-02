@@ -13,7 +13,7 @@
 
 import type { Fetcher, SearchOptions } from './base-fetcher';
 
-// 各数据源实现
+// 各数据源实现（search 用 singleton 实例）
 import { ArxivFetcher } from './arxiv-fetcher';
 import { IEEEFetcher } from './ieee-fetcher';
 import { OpenAlexFetcher } from './openalex-fetcher';
@@ -173,13 +173,27 @@ function rerankScore(article: import('../types').Article, query: string): number
 
 // ─── 按 ID 获取文章（自动路由到对应 Fetcher）────────────────────
 export async function fetchArticleById(id: string): Promise<import('../types').Article | null> {
-  // id 格式：sourceId-actualId（如 arxiv-2401.12345）
-  const parts = id.split('-');
-  if (parts.length < 2) return null;
+  // 先判断来源前缀（优先匹配前缀，兜底用名称匹配）
+  const fetcherMap: Array<{ prefixes: string[]; fetcher: Fetcher }> = [
+    { prefixes: ['arxiv'], fetcher: new ArxivFetcher() },
+    { prefixes: ['openalex'], fetcher: new OpenAlexFetcher() },
+    { prefixes: ['pubmed'], fetcher: new PubMedFetcher() },
+    { prefixes: ['ieee'], fetcher: new IEEEFetcher() },
+    { prefixes: ['hn', 'news', 'rss', 'web'], fetcher: new NewsFetcher() },
+  ];
 
-  const sourceName = parts[0].toLowerCase();
+  // 精确前缀匹配
+  const lower = id.toLowerCase();
+  for (const { prefixes, fetcher } of fetcherMap) {
+    if (prefixes.some((p) => lower.startsWith(`${p}-`))) {
+      if (fetcher.fetchById) {
+        return await fetcher.fetchById(id);
+      }
+    }
+  }
 
-  // 找到对应的 Fetcher
+  // 名称模糊匹配（兜底：某些 ID 可能没有前缀）
+  const sourceName = id.split('-')[0].toLowerCase();
   const fetcher = defaultFetchers.find(
     (f) => f.name.toLowerCase().includes(sourceName) ||
       (sourceName === 'arxiv' && f.name === 'ArXiv') ||

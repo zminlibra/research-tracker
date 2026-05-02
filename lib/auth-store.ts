@@ -152,6 +152,10 @@ export function isFavorited(articleId: string): boolean {
 export function addFavorite(articleId: string): void {
   const user = getCurrentUser();
   if (!user) return;
+  // 确保 favorites 始终是数组
+  if (!Array.isArray(user.favorites)) {
+    user.favorites = [];
+  }
   if (!user.favorites.includes(articleId)) {
     user.favorites.push(articleId);
     updateUser(user);
@@ -161,6 +165,9 @@ export function addFavorite(articleId: string): void {
 export function removeFavorite(articleId: string): void {
   const user = getCurrentUser();
   if (!user) return;
+  if (!Array.isArray(user.favorites)) {
+    user.favorites = [];
+  }
   user.favorites = user.favorites.filter((id) => id !== articleId);
   updateUser(user);
 }
