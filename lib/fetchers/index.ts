@@ -119,63 +119,46 @@ export async function aggregateSearch(
 function rerankScore(article: import('../types').Article, query: string): number {
   let score = 0;
 
-  // ── 1. 来源权威性（核心加权，固定值）────────────────────────
-  // 正式期刊 > 预印本，确保各来源论文都有展示机会
+  // ── 1. 来源基础权重（低权重，关键词匹配才是核心）───────────
   const idLower = article.id.toLowerCase();
   const srcLower = article.source.toLowerCase();
 
   if (idLower.startsWith('pubmed-') || srcLower.includes('pubmed')) {
-    // PubMed：同行评审生物医学文献，对合成生物学用户高度相关
-    score += 50;
-  } else if (idLower.startsWith('openalex-')) {
-    // OpenAlex：含期刊名 → 正式期刊论文；无期刊名 → 可能是会议/预印本
-    const baseScore = article.source && article.source !== 'OpenAlex' ? 40 : 25;
-    // ── 中文期刊/机构额外加权 ──────────────────────────────────
-    // 期刊名含中文 → 中文期刊论文
-    const hasChineseJournal = /[\u4e00-\u9fff]/.test(article.source);
-    // 作者团队含中国机构（CN）
-    const hasChineseInstitution = (article.institutionsCountry || []).includes('CN');
-    const chineseBonus = hasChineseJournal ? 15 : hasChineseInstitution ? 8 : 0;
-    score += baseScore + chineseBonus;
+    score += 50; // PubMed：同行评审生物医学，高度相关
+  } else if (idLower.startsWith('ieee-') || srcLower.includes('ieee') || srcLower.includes('acm')) {
+    score += 35; // IEEE/ACM：工程技术权威
   } else if (idLower.startsWith('arxiv-') || srcLower.includes('arxiv')) {
-    // arXiv：预印本，质量参差，降低权重
-    const hasChineseInstitution = (article.institutionsCountry || []).includes('CN');
-    score += hasChineseInstitution ? 8 : 5;
-  } else if (srcLower.includes('ieee') || srcLower.includes('acm')) {
-    // IEEE/ACM：工程技术权威来源
-    score += 35;
-  } else {
-    // Web / News 等其他来源
-    score += 0;
+    score += 5; // arXiv：预印本，低权重
   }
+  // OpenAlex：无权威加权，完全依赖关键词匹配决定排名
+  // Web / News 等其他来源：+0
 
-  // ── 2. 关键词相关度（标题匹配加权，摘要仅作补充）────────────
-  const q = query.toLowerCase();
-  const queryTerms = q.split(/\s+/).filter((t: string) => t.length > 1);
+  // ── 2. 关键词相关度（核心排序因素）────────────────────────
+  const queryTerms = query.toLowerCase().split(/\s+/).filter((t: string) => t.length > 1);
 
-  // 标题中命中关键词（最重要，权重高）
+  // 标题命中关键词（最重要）
   for (const term of queryTerms) {
     if (article.title.toLowerCase().includes(term)) {
-      score += 3; // 每命中一个关键词 +3
+      score += 3; // 每命中一个 +3
     }
   }
 
-  // 摘要中命中关键词（仅统计有实质内容的摘要，防止 placeholder 占优）
+  // 摘要命中关键词（仅统计有实质内容的摘要）
   const summaryLen = (article.summary || '').length;
   if (summaryLen > 50) {
     const summary = article.summary.toLowerCase();
     for (const term of queryTerms) {
-      const count = (summary.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length;
-      score += count * 0.5; // 摘要中每命中一次 +0.5（权重很低，避免长摘要碾压）
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const count = (summary.match(new RegExp(escaped, 'gi')) || []).length;
+      score += count * 0.5;
     }
   }
 
-  // ── 3. 时间新鲜度（近 3 年 +5，越老衰减越多）──────────────
+  // ── 3. 时间新鲜度（近 3 年加分）──────────────────────────
   if (article.publishedDate) {
     const year = parseInt(article.publishedDate.slice(0, 4));
     if (!isNaN(year) && year >= 2020) {
-      const age = 2026 - year;
-      score += Math.max(0, 5 - age); // 2024-2026 → +5~+2，2020 → +1
+      score += Math.max(0, 5 - (2026 - year));
     }
   }
 
