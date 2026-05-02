@@ -1,39 +1,28 @@
 import type { Article } from './types';
 
-// ─── Hacker News API（免费，无需 Key）─────────────────────────
-const HN_API = 'https://hacker-news.firebaseio.com/v0';
+// ─── Hacker News ────────────────────────────────────────────
+// 使用 hnrss.org 获取 HN 内容（1 次请求 vs 官方 API 的 60+ 次请求）。
+// Cloudflare Workers 限制单个请求最多 50 个子请求，HN 官方 API 的
+// /topstories.json + /item/{id}.json 模式直接爆炸，导致 RSS 源无法请求。
 
 interface HNItem {
-  id: number;
   title: string;
   url?: string;
-  text?: string;
-  time: number;
-  score: number;
-  descendants: number;
-  type: string;
+  description?: string;
+  time?: number;
+  score?: number;
 }
 
-async function fetchHNTopStories(limit = 50): Promise<HNItem[]> {
+async function fetchHNStories(limit = 15): Promise<HNItem[]> {
   try {
-    const idsRes = await fetch(`${HN_API}/topstories.json`);
-    if (!idsRes.ok) return [];
-    const ids: number[] = await idsRes.json();
-
-    const batch = ids.slice(0, limit);
-    const items = await Promise.all(
-      batch.map(async (id) => {
-        try {
-          const res = await fetch(`${HN_API}/item/${id}.json`);
-          if (!res.ok) return null;
-          return await res.json() as HNItem;
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    return items.filter((i): i is HNItem => i !== null && i.type === 'story');
+    const sourceUrl = `https://hnrss.org/frontpage?count=${limit}`;
+    const items = await fetchRSSFeed(sourceUrl);
+    return items.map((item) => ({
+      title: item.title,
+      url: item.link,
+      description: item.description,
+      time: item.pubDate ? new Date(item.pubDate).getTime() / 1000 : undefined,
+    }));
   } catch {
     return [];
   }
@@ -46,7 +35,7 @@ interface RSSSource {
   type: 'news';
 }
 
-// 注意：hnrss.org 已被移除，因为 Hacker News 内容已由 fetchHNTopStories API 覆盖。
+// 注意：hnrss.org 不在此列表，因为 HN 内容已由 fetchHNStories() 在第 1 步覆盖。
 // 各 RSS 源按内容丰富度排序，优先处理质量高的源。
 const RSS_SOURCES: RSSSource[] = [
   { url: 'https://feeds.arstechnica.com/arstechnica/index', name: 'Ars Technica', type: 'news' },
@@ -297,14 +286,16 @@ function hnToArticle(item: HNItem): Article {
     ? new Date(item.time * 1000).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0];
 
+  // 从 URL 中提取 HN item ID 做唯一标识
+  const hnId = item.url ? item.url.replace(/[^0-9]/g, '').slice(-8) : '';
+
   return {
-    id: `hn-${item.id}`,
-    title: item.title || '无标题',
-    summary: (item.text || '').replace(/<[^>]+>/g, '').slice(0, 350)
-      || '暂无摘要，请点击原文查看详情',
+    id: `hn-${hnId || Date.now()}`,
+    title: cleanHTML(item.title) || '无标题',
+    summary: extractSummary(item.description || '', item.title, 'Hacker News'),
     source: 'Hacker News',
     sourceType: 'news',
-    url: item.url || `https://news.ycombinator.com/item?id=${item.id}`,
+    url: item.url || '#',
     imageUrl: null,
     publishedDate: date,
     authors: [],
@@ -321,11 +312,12 @@ export async function searchNews(
   let articles: Article[] = [];
   const chineseQuery = isChineseQuery(query);
 
-  // 1. Hacker News API（限制为总量的 1/3，留更多空间给其他 RSS 源）
+  // 1. Hacker News（通过 hnrss.org，1 次请求替代 60+ 次 API 调用）
+  //    Cloudflare Workers 限制单请求 50 个子请求，用官方 API 会导致 RSS 源无法请求
   try {
-    const hnStories = await fetchHNTopStories(60);
+    const hnStories = await fetchHNStories(25);
     const matching = hnStories
-      .filter((s) => matchesQuery(s.title, s.text || '', query))
+      .filter((s) => matchesQuery(s.title, s.description || '', query))
       .slice(0, Math.ceil(maxResults / 3));
     articles.push(...matching.map(hnToArticle));
   } catch {
