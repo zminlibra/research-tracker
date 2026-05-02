@@ -57,7 +57,6 @@ const SELECT_FIELDS = [
   'publication_date',
   'publication_year',
   'locations',
-  'host_venue',
   'topics',
   'cited_by_count',
   'type',
@@ -198,13 +197,9 @@ function toArticle(work: Record<string, unknown>): Article {
   // 出版日期
   const publicationDate = parseOpenAlexDate(work);
 
-  // 期刊/来源名称（多个字段取第一个非空值）
+  // 期刊/来源名称（从 locations 取第一个来源的 display_name）
   const locations = (work.locations as Location[]) || [];
-  const primaryLocation = locations[0];
-  const sourceDisplayName: string =
-    primaryLocation?.source?.display_name ||
-    (work.host_venue as Record<string, unknown>)?.display_name as string ||
-    '';
+  const sourceDisplayName: string = locations[0]?.source?.display_name || '';
   const journal = sourceDisplayName;
 
   // 标签/主题（前 5 个，取 subfield 或 field 或 topic 名称）
