@@ -177,7 +177,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {articles.map((article) => (
             <Card key={article.id} className="hover:shadow-md transition-shadow group">
               <CardContent className="p-5">
-                <Link href={`/article/${article.id}`}>
+                <Link
+                  href={`/article/${article.id}?title=${encodeURIComponent(article.title)}&source=${encodeURIComponent(article.source)}&date=${encodeURIComponent(article.publishedDate)}&authors=${encodeURIComponent(article.authors.join(','))}&tags=${encodeURIComponent(article.tags.join(','))}&summary=${encodeURIComponent((article.summary || '').slice(0, 1000))}&type=${encodeURIComponent(article.sourceType)}&url=${encodeURIComponent(article.url)}&clicks=${article.clickCount}`}
+                >
                   <h3 className="text-base font-semibold group-hover:text-primary transition-colors mb-2 leading-snug">
                     {article.title}
                   </h3>
