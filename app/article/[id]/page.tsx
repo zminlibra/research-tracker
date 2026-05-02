@@ -30,11 +30,30 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   try {
     if (id.startsWith('ss-')) {
-      article = await getPaperById(id);
+      // Semantic Scholar
+      try { article = await getPaperById(id); } catch {}
+      if (!article) {
+        const ssId = id.replace('ss-', '');
+        article = {
+          id, title: '学术论文', summary: '该内容来自 Semantic Scholar。详细信息请点击下方"查看原文"链接获取完整论文。',
+          source: 'Semantic Scholar', sourceType: 'paper',
+          url: `https://www.semanticscholar.org/paper/${ssId}`,
+          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+        };
+      }
     } else if (id.startsWith('arxiv-')) {
       const arxivId = id.replace('arxiv-', '');
-      article = await getArxivById(arxivId);
+      try { article = await getArxivById(arxivId); } catch {}
+      if (!article) {
+        article = {
+          id, title: 'arXiv 学术论文', summary: '该内容来自 arXiv。详细信息请点击下方"查看原文"链接获取完整论文。',
+          source: 'arXiv', sourceType: 'paper',
+          url: `https://arxiv.org/abs/${arxivId}`,
+          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+        };
+      }
     } else if (id.startsWith('rss-')) {
+      // RSS / 新闻源
       let originalUrl = '#';
       try {
         originalUrl = atob(id.replace('rss-', ''));
@@ -45,21 +64,25 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
       };
     } else if (id.startsWith('hn-')) {
+      // Hacker News
       const hnId = id.replace('hn-', '');
       try {
-        const hnRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${hnId}.json`);
+        const hnRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${hnId}.json`, { signal: AbortSignal.timeout(5000) });
         if (hnRes.ok) {
           const hnItem = await hnRes.json();
-          article = {
-            id, title: hnItem.title || 'Hacker News 讨论',
-            summary: (hnItem.text || '').replace(/<[^>]+>/g, '').slice(0, 500) || '暂无摘要，请点击原文查看详情',
-            source: 'Hacker News', sourceType: 'news',
-            url: hnItem.url || `https://news.ycombinator.com/item?id=${hnId}`,
-            imageUrl: null, publishedDate: hnItem.time ? new Date(hnItem.time * 1000).toISOString().split('T')[0] : '',
-            authors: [], tags: [], clickCount: hnItem.score || 0,
-          };
+          if (hnItem && hnItem.title) {
+            article = {
+              id, title: hnItem.title,
+              summary: (hnItem.text || '').replace(/<[^>]+>/g, '').slice(0, 500) || '暂无摘要，请点击原文查看详情',
+              source: 'Hacker News', sourceType: 'news',
+              url: hnItem.url || `https://news.ycombinator.com/item?id=${hnId}`,
+              imageUrl: null, publishedDate: hnItem.time ? new Date(hnItem.time * 1000).toISOString().split('T')[0] : '',
+              authors: [], tags: [], clickCount: hnItem.score || 0,
+            };
+          }
         }
       } catch { /* ignore */ }
+      // hn- 永远有兜底
       if (!article) {
         article = {
           id, title: 'Hacker News 讨论', summary: '该内容来自 Hacker News。详细信息请点击下方"查看原文"链接。',
@@ -71,7 +94,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       }
     } else if (id.startsWith('crossref-')) {
       const doi = id.replace('crossref-', '');
-      article = await getCrossRefByDoi(doi);
+      try { article = await getCrossRefByDoi(doi); } catch {}
       if (!article) {
         article = {
           id, title: '学术论文', summary: '无法获取该论文详情，请点击下方链接访问原文。',
@@ -80,6 +103,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           authors: [], tags: [], clickCount: 0,
         };
       }
+    } else if (id.startsWith('pubmed-')) {
+      const pmid = id.replace('pubmed-', '');
+      article = {
+        id, title: 'PubMed 学术论文', summary: '该内容来自 PubMed。详细信息请点击下方"查看原文"链接获取完整论文。',
+        source: 'PubMed', sourceType: 'paper',
+        url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+        imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+      };
     } else if (id.startsWith('web-') || id.startsWith('news-')) {
       let originalUrl = '#';
       try {
@@ -91,9 +122,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         source: '网络新闻', sourceType: 'news', url: originalUrl, imageUrl: null,
         publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
       };
+    } else {
+      // 未知 ID 格式：尝试当作 arXiv ID 处理
+      try { article = await getArxivById(id); } catch {}
+      if (!article) {
+        error = '文章未找到';
+      }
     }
-
-    if (!article) error = '文章未找到';
   } catch {
     error = '文章加载失败，请稍后重试';
   }
