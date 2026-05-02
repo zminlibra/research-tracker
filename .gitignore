@@ -33,6 +33,8 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 .dev.vars
+# Cloudflare Wrangler（含 API Key 等敏感信息，切勿提交）
+wrangler.toml
 
 # vercel
 .vercel
