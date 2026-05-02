@@ -4,6 +4,7 @@ import HotTags from '@/components/HotTags';
 import TrendChart from '@/components/TrendChart';
 import TrendingList from '@/components/TrendingList';
 import { getTrendingArticles } from '@/lib/search';
+import { fetchTrendingNews } from '@/lib/fetchers/news-fetcher';
 
 const CATEGORIES = [
   { slug: 'ai', name: '人工智能', icon: '🤖', color: 'from-blue-500 to-cyan-500' },
@@ -16,8 +17,8 @@ const CATEGORIES = [
 
 export default async function HomePage() {
   // 服务端获取热门数据
-  const [hotPapers, latestPapers] = await Promise.all([
-    getTrendingArticles(undefined, 'month'),
+  const [hotNews, latestPapers] = await Promise.all([
+    fetchTrendingNews(12),
     getTrendingArticles('ai', 'week'),
   ]);
 
