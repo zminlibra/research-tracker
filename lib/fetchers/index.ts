@@ -15,8 +15,6 @@ import type { Fetcher, SearchOptions } from './base-fetcher';
 
 // 各数据源实现
 import { ArxivFetcher } from './arxiv-fetcher';
-import { SemanticScholarFetcher } from './semantic-scholar-fetcher';
-import { CrossrefFetcher } from './crossref-fetcher';
 import { IEEEFetcher } from './ieee-fetcher';
 import { PubMedFetcher } from './pubmed-fetcher';
 import { WebSearchFetcher } from './web-search-fetcher';
@@ -27,8 +25,6 @@ import { NewsFetcher } from './news-fetcher';
 // IEEE / PubMed 需要 API Key，Fetcher 内部会在 Key 为空时静默跳过。
 export const defaultFetchers: Fetcher[] = [
   new ArxivFetcher(),
-  new SemanticScholarFetcher(),
-  new CrossrefFetcher(),
   new IEEEFetcher(),
   new PubMedFetcher(),
   new WebSearchFetcher(),
@@ -123,7 +119,7 @@ function rerankScore(article: import('../types').Article, query: string): number
   }
 
   // 2. 来源权威性加分
-  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'CrossRef', 'PubMed', 'Semantic Scholar'];
+  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'PubMed'];
   if (authoritySources.some((s) => article.source.includes(s))) {
     score += 3;
   }
@@ -155,8 +151,6 @@ export async function fetchArticleById(id: string): Promise<import('../types').A
   const fetcher = defaultFetchers.find(
     (f) => f.name.toLowerCase().includes(sourceName) ||
       (sourceName === 'arxiv' && f.name === 'ArXiv') ||
-      (sourceName === 'ss' && f.name === 'Semantic Scholar') ||
-      (sourceName === 'crossref' && f.name === 'CrossRef') ||
       (sourceName === 'ieee' && f.name === 'IEEE Xplore') ||
       (sourceName === 'pubmed' && f.name === 'PubMed') ||
       (sourceName === 'web' && f.name === 'Web Search') ||

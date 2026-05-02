@@ -38,15 +38,6 @@ export async function fetchFullText(
         return fullText;
       }
     }
-
-    // 3. Semantic Scholar 如果有 OA 链接
-    if (articleId.startsWith('ss-')) {
-      const fullText = await fetchSemanticScholarFullText(articleId);
-      if (fullText && fullText.length > 500) {
-        FULL_TEXT_CACHE.set(cacheKey, fullText);
-        return fullText;
-      }
-    }
   } catch {
     // 所有抓取尝试失败，返回 null
   }
@@ -132,46 +123,6 @@ async function fetchPmcFullText(
       return text.slice(0, 30000);
     }
     return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 尝试从 Semantic Scholar 获取 OA（开放获取）全文
- */
-async function fetchSemanticScholarFullText(
-  articleId: string
-): Promise<string | null> {
-  try {
-    const ssId = articleId.replace('ss-', '');
-    const response = await fetch(
-      `https://api.semanticscholar.org/graph/v1/paper/${ssId}?fields=title,abstract,openAccessPdf`,
-      {
-        headers: {
-          'User-Agent': 'ResearchTracker/1.0 (academic research tool)',
-        },
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    
-    // 如果有 OA PDF 链接，尝试抓取
-    if (data.openAccessPdf?.url) {
-      const pdfResponse = await fetch(data.openAccessPdf.url, {
-        signal: AbortSignal.timeout(10000),
-      });
-      if (pdfResponse.ok) {
-        // 注意：PDF 需要解析，这里只返回摘要作为兜底
-        // 实际生产环境需要使用 PDF 解析库（如 pdf-parse）
-        return data.abstract || null;
-      }
-    }
-
-    return data.abstract || null;
   } catch {
     return null;
   }

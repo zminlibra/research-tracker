@@ -6,8 +6,6 @@ import CompareButton from '@/components/CompareButton';
 import FavoriteButton from '@/components/FavoriteButton';
 import ReadingTracker from '@/components/ReadingTracker';
 import { getArxivById } from '@/lib/arxiv';
-import { getPaperById } from '@/lib/semantic-scholar';
-import { getCrossRefByDoi } from '@/lib/crossref';
 import { aggregateSearch } from '@/lib/search';
 import type { Article } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -60,17 +58,9 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   // ─── 策略二：URL 参数没有，尝试从 API 获取 ──────────────────
   if (!article) {
     try {
-      if (id.startsWith('ss-')) {
-        try { article = await getPaperById(id); } catch {}
-        if (!article) {
-          const ssId = id.replace('ss-', '');
-          article = {
-            id, title: 'Semantic Scholar 论文', summary: '该内容来自 Semantic Scholar。详细信息请点击下方"查看原文"链接获取完整论文。',
-            source: 'Semantic Scholar', sourceType: 'paper',
-            url: `https://www.semanticscholar.org/paper/${ssId}`,
-            imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
-          };
-        }
+      if (id.startsWith('ss-') || id.startsWith('crossref-')) {
+        // 这两个数据源已被移除（限流严重 / 404 问题）
+        error = '该文章来源（Semantic Scholar / Crossref）已被移除，请从搜索页重新查找该文章。';
       } else if (id.startsWith('arxiv-')) {
         const arxivId = id.replace('arxiv-', '');
         try { article = await getArxivById(arxivId); } catch {}
@@ -114,17 +104,6 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             source: 'Hacker News', sourceType: 'news',
             url: `https://news.ycombinator.com/item?id=${hnId}`,
             imageUrl: null, publishedDate: new Date().toISOString().split('T')[0],
-            authors: [], tags: [], clickCount: 0,
-          };
-        }
-      } else if (id.startsWith('crossref-')) {
-        const doi = id.replace('crossref-', '');
-        try { article = await getCrossRefByDoi(doi); } catch {}
-        if (!article) {
-          article = {
-            id, title: '学术论文', summary: '无法获取该论文详情，请点击下方链接访问原文。',
-            source: 'CrossRef', sourceType: 'paper',
-            url: `https://doi.org/${doi}`, imageUrl: null, publishedDate: '',
             authors: [], tags: [], clickCount: 0,
           };
         }

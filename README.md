@@ -12,8 +12,8 @@
 
 ### 多源数据聚合
 - **arXiv** — 预印本论文（实时 API）
-- **Semantic Scholar** — 学术论文索引（含引用数据）
-- **Crossref** — 学术期刊 DOI 元数据
+- **PubMed** — 生物医学文献（免费 API）
+- **IEEE Xplore** — 工程技术文献（需 API Key）
 - **SearXNG** — 聚合 Google / Bing 的网页搜索结果
 - **RSS + Hacker News** — 科技新闻与热门讨论
 
@@ -49,8 +49,6 @@ AI 层（纯客户端，不消耗服务端资源）
 
 数据源适配器
 ├── lib/arxiv.ts
-├── lib/semantic-scholar.ts
-├── lib/crossref.ts
 ├── lib/news.ts
 └── lib/web-search.ts
 
@@ -142,8 +140,6 @@ research-tracker/
 │   ├── ai.ts                  # 服务端 AI 调用（遗留，未使用）
 │   ├── search.ts              # 搜索聚合引擎（去重 + 排序）
 │   ├── arxiv.ts               # arXiv API 适配器
-│   ├── semantic-scholar.ts    # Semantic Scholar 适配器
-│   ├── crossref.ts            # Crossref 适配器
 │   ├── news.ts                # RSS + HN 新闻源
 │   └── web-search.ts          # SearXNG 网页搜索
 ├── data/

@@ -20,7 +20,7 @@ export default function HelpPage() {
         <ul className="text-sm text-text-secondary space-y-3">
           <li className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-2" />
-            <span><strong>学术论文</strong>：来自 arXiv 和 Semantic Scholar 的科研论文，适合了解学术前沿</span>
+            <span><strong>学术论文</strong>：来自 arXiv、PubMed、IEEE 等平台的科研论文，适合了解学术前沿</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mt-2" />
@@ -36,7 +36,7 @@ export default function HelpPage() {
       <section className="bg-white rounded-lg border border-border p-6 mb-6">
         <h2 className="text-lg font-bold text-secondary mb-3">搜索技巧</h2>
         <ul className="text-sm text-text-secondary space-y-2 list-disc list-inside">
-          <li>使用<strong>英文关键词</strong>可以获得更多学术论文结果（arXiv 和 Semantic Scholar 主要索引英文内容）</li>
+          <li>使用<strong>英文关键词</strong>可以获得更多学术论文结果（arXiv、PubMed、IEEE 等主要索引英文内容）</li>
           <li>使用<strong>中文关键词</strong>可以获得更多新闻报道（Google News 支持中文搜索）</li>
           <li>尝试不同的排序方式：<strong>按热度</strong>看最受关注的内容，<strong>按时间</strong>看最新进展</li>
           <li>使用领域分类页面快速浏览特定领域的热门内容</li>

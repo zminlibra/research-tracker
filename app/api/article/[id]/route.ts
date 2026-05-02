@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getArxivById } from '@/lib/arxiv';
-import { getPaperById } from '@/lib/semantic-scholar';
-import { getCrossRefByDoi } from '@/lib/crossref';
 
 export async function GET(
   _request: Request,
@@ -10,16 +8,11 @@ export async function GET(
   const { id } = await params;
 
   try {
-    if (id.startsWith('ss-')) {
-      const article = await getPaperById(id);
-      if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      return NextResponse.json(article);
-    } else if (id.startsWith('arxiv-')) {
+    if (id.startsWith('ss-') || id.startsWith('crossref-')) {
+      return NextResponse.json({ error: '此文章来源（Semantic Scholar / Crossref）已被移除，请从搜索页重新查找。' }, { status: 410 });
+    }
+    if (id.startsWith('arxiv-')) {
       const article = await getArxivById(id.replace('arxiv-', ''));
-      if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      return NextResponse.json(article);
-    } else if (id.startsWith('crossref-')) {
-      const article = await getCrossRefByDoi(id.replace('crossref-', ''));
       if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       return NextResponse.json(article);
     }
