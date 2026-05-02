@@ -11,6 +11,8 @@
 
 ---
 
+[Research Tracker](https://researchtracker.win/)
+
 ## ✨ 功能特性
 
 ### 📚 多源数据聚合
