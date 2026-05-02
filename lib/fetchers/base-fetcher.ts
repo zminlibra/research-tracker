@@ -18,6 +18,8 @@ export interface SearchOptions {
   yearTo?: number;
   /** 作者名筛选 */
   author?: string;
+  /** 是否仅返回中国机构作者的论文（OpenAlex 专用）*/
+  chineseOnly?: boolean;
 }
 
 export interface Fetcher {

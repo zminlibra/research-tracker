@@ -12,13 +12,13 @@ export class OpenAlexFetcher implements Fetcher {
   sourceType = 'paper' as const;
 
   async search(options: SearchOptions): Promise<Article[]> {
-    const { query, limit = 20, offset = 0 } = options;
-    const cacheKey = makeCacheKey('openalex', { q: query, l: limit, o: offset });
+    const { query, limit = 20, offset = 0, chineseOnly = false } = options;
+    const cacheKey = makeCacheKey('openalex', { q: query, l: limit, o: offset, cn: chineseOnly ? 1 : 0 });
     const cached = getCached<Article[]>(cacheKey);
     if (cached) return cached;
 
     const page = Math.floor(offset / limit) + 1;
-    const articles = await apiSearch(query, limit, page);
+    const articles = await apiSearch(query, limit, page, chineseOnly);
     setCached(cacheKey, articles, 30 * 60 * 1000);
     return articles;
   }

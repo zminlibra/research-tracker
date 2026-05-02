@@ -43,9 +43,9 @@ export function getFetcherByName(name: string): Fetcher | undefined {
 // 客户端搜索见 lib/search-client.ts（直接在浏览器中调用各数据源）。
 export async function aggregateSearch(
   query: string,
-  options: { limit?: number; offset?: number; sourceFilter?: string } = {},
+  options: { limit?: number; offset?: number; sourceFilter?: string; chineseOnly?: boolean } = {},
 ): Promise<{ articles: import('../types').Article[]; totalCount: number }> {
-  const { sourceFilter, ...searchOptions } = options;
+  const { sourceFilter, chineseOnly, ...searchOptions } = options;
   const limit = searchOptions.limit ?? 20;
 
   // 根据 sourceFilter 过滤数据源
@@ -63,7 +63,7 @@ export async function aggregateSearch(
   // 并发调用所有启用的数据源
   const results = await Promise.allSettled(
     activeFetchers.map((fetcher) =>
-      fetcher.search({ ...searchOptions, query, limit: expandedLimit }).then((articles) => ({
+      fetcher.search({ ...searchOptions, query, limit: expandedLimit, chineseOnly }).then((articles) => ({
         name: fetcher.name,
         articles,
       }))
@@ -123,10 +123,18 @@ function rerankScore(article: import('../types').Article, query: string): number
     score += 50;
   } else if (idLower.startsWith('openalex-')) {
     // OpenAlex：含期刊名 → 正式期刊论文；无期刊名 → 可能是会议/预印本
-    score += article.source && article.source !== 'OpenAlex' ? 40 : 25;
+    const baseScore = article.source && article.source !== 'OpenAlex' ? 40 : 25;
+    // ── 中文期刊/机构额外加权 ──────────────────────────────────
+    // 期刊名含中文 → 中文期刊论文
+    const hasChineseJournal = /[\u4e00-\u9fff]/.test(article.source);
+    // 作者团队含中国机构（CN）
+    const hasChineseInstitution = (article.institutionsCountry || []).includes('CN');
+    const chineseBonus = hasChineseJournal ? 15 : hasChineseInstitution ? 8 : 0;
+    score += baseScore + chineseBonus;
   } else if (idLower.startsWith('arxiv-') || srcLower.includes('arxiv')) {
     // arXiv：预印本，质量参差，降低权重
-    score += 5;
+    const hasChineseInstitution = (article.institutionsCountry || []).includes('CN');
+    score += hasChineseInstitution ? 8 : 5;
   } else if (srcLower.includes('ieee') || srcLower.includes('acm')) {
     // IEEE/ACM：工程技术权威来源
     score += 35;

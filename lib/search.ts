@@ -57,9 +57,10 @@ export async function aggregateSearch(
   pageSize = 20,
   sortBy: 'relevance' | 'date' | 'clicks' = 'relevance',
   sourceFilter: 'all' | 'paper' | 'news' = 'all',
-  filters?: { yearFrom?: number; yearTo?: number; author?: string }
+  filters?: { yearFrom?: number; yearTo?: number; author?: string },
+  chineseOnly = false,
 ): Promise<SearchResult> {
-  const filtersStr = JSON.stringify(filters || {});
+  const filtersStr = JSON.stringify({ ...filters, chineseOnly });
   const cacheKey = buildCacheKey(query, sortBy, sourceFilter, filtersStr);
 
   // 尝试命中缓存（仅第一页缓存）
@@ -74,6 +75,7 @@ export async function aggregateSearch(
     limit: pageSize,
     offset,
     sourceFilter,
+    chineseOnly,
     ...filters,
   });
 

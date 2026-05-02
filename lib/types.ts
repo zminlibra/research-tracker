@@ -10,6 +10,8 @@ export interface Article {
   authors: string[];
   tags: string[];
   clickCount: number;
+  /** 作者机构所属国家代码数组，用于中文来源检测（如 ['CN'] 表示含中国机构） */
+  institutionsCountry?: string[];
 }
 
 export interface SearchResult {

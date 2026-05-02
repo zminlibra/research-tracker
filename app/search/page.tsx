@@ -19,6 +19,7 @@ interface SearchPageProps {
     yearFrom?: string;
     yearTo?: string;
     author?: string;
+    chinese?: string;
   }>;
 }
 
@@ -31,6 +32,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const yearFrom = params.yearFrom ? parseInt(params.yearFrom) : undefined;
   const yearTo = params.yearTo ? parseInt(params.yearTo) : undefined;
   const author = params.author || '';
+  const chinese = params.chinese === '1';
 
   if (!query) {
     return (
@@ -48,7 +50,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   try {
     const result = await aggregateSearch(
       query, page, 20, sort as any, source as any,
-      { yearFrom, yearTo, author: author || undefined }
+      { yearFrom, yearTo, author: author || undefined },
+      chinese
     );
     articles = result.articles;
     totalCount = result.totalCount;
@@ -74,6 +77,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     else if (params.yearTo) p.set('yearTo', params.yearTo);
     if (overrides.author !== undefined) p.set('author', overrides.author);
     else if (author) p.set('author', author);
+    if (overrides.chinese !== undefined) {
+      if (overrides.chinese === '1') p.set('chinese', '1');
+    } else if (chinese) p.set('chinese', '1');
     if (overrides.page !== undefined) p.set('page', overrides.page);
     else p.set('page', '1'); // 筛选变更时回到第 1 页
     return `/search?${p.toString()}`;
@@ -117,6 +123,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 </Badge>
               </Link>
             ))}
+            <span className="text-border hidden sm:block">|</span>
+            <Link href={buildUrl({ chinese: chinese ? '' : '1' })}>
+              <Badge
+                variant={chinese ? 'default' : 'secondary'}
+                className={`${!chinese ? 'cursor-pointer hover:bg-accent' : 'cursor-default'} border ${chinese ? 'bg-amber-600 border-amber-600 text-white' : 'border-amber-400 text-amber-500'}`}>
+                🇨🇳 中文论文
+              </Badge>
+            </Link>
           </div>
         </div>
 

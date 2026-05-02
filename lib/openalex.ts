@@ -14,15 +14,32 @@ const MAILTO = 'research-tracker@example.com';
 /**
  * 搜索 OpenAlex 论文。
  * 支持分页，返回 Article[] 数组。
+ * @param query 搜索关键词
+ * @param perPage 每页数量（默认20，最大100）
+ * @param page 页码
+ * @param chineseOnly 是否仅返回中国机构作者的论文（注入 institutions.country_code:CN 过滤）
  */
 export async function searchOpenAlex(
   query: string,
   perPage = 20,
   page = 1,
+  chineseOnly = false,
 ): Promise<Article[]> {
   try {
     // OpenAlex 使用 page + per-page 分页（不是 offset）
-    const url = `${OPENALEX_API}/works?search=${encodeURIComponent(query)}&per-page=${perPage}&page=${page}&mailto=${MAILTO}`;
+    const params = new URLSearchParams({
+      search: query,
+      'per-page': String(Math.min(perPage, 100)),
+      page: String(page),
+      mailto: MAILTO,
+    });
+
+    // 注入中文机构过滤（作者团队中至少一人来自中国高校/研究所）
+    if (chineseOnly) {
+      params.set('filter', 'authorships.institutions.country_code:CN');
+    }
+
+    const url = `${OPENALEX_API}/works?${params.toString()}`;
 
     const res = await fetch(url, {
       headers: {
@@ -105,6 +122,19 @@ function toArticle(work: Record<string, unknown>): Article {
     .map((a) => a.author?.display_name?.trim())
     .filter((name): name is string => Boolean(name));
 
+  // 提取作者机构所属国家代码（用于中文论文检测）
+  const countrySet = new Set<string>();
+  for (const a of authorships) {
+    if (a.institutions) {
+      for (const inst of a.institutions) {
+        if (inst.country_code) {
+          countrySet.add(inst.country_code.toUpperCase());
+        }
+      }
+    }
+  }
+  const institutionsCountry = countrySet.size > 0 ? Array.from(countrySet) : undefined;
+
   // 出版日期
   const publicationDate = parseOpenAlexDate(work);
 
@@ -143,6 +173,7 @@ function toArticle(work: Record<string, unknown>): Article {
     authors: authors.slice(0, 5),
     tags,
     clickCount: citedByCount,
+    institutionsCountry,
   };
 }
 
@@ -159,6 +190,7 @@ interface OpenAlexPosition {
 interface AuthorshipEntry {
   author?: { display_name?: string };
   author_position?: string;
+  institutions?: Array<{ display_name?: string; country_code?: string; type?: string }>;
 }
 
 /** OpenAlex locations 中的来源条目 */
