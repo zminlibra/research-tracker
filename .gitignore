@@ -45,6 +45,7 @@ next-env.d.ts
 
 # project-specific ignores
 .open-next/
+.wrangler/
 .workbuddy/
 dev.log
 dev-err.log

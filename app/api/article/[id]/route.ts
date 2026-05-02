@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getArxivById } from '@/lib/arxiv';
-import { getOpenAlexById } from '@/lib/openalex';
 import { fetchArticleById } from '@/lib/fetchers';
 
 export async function GET(

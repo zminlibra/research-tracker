@@ -45,6 +45,7 @@ export async function aggregateSearch(
 ): Promise<{ articles: import('../types').Article[]; totalCount: number }> {
   const { sourceFilter, chineseOnly, ...searchOptions } = options;
   const limit = searchOptions.limit ?? 20;
+  const offset = searchOptions.offset ?? 0;
 
   // 根据 sourceFilter 过滤数据源
   const activeFetchers = sourceFilter && sourceFilter !== 'all'
@@ -114,7 +115,7 @@ export async function aggregateSearch(
   }));
   scored.sort((a, b) => b.score - a.score);
 
-  const paginated = scored.slice(0, limit).map((s) => s.article);
+  const paginated = scored.slice(offset, offset + limit).map((s) => s.article);
 
   return {
     articles: paginated,

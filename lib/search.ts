@@ -13,8 +13,7 @@
  */
 
 import type { Article, SearchResult } from './types';
-import { defaultFetchers, aggregateSearch as fetcherAggregateSearch } from './fetchers/index';
-import { fetchTrendingNews } from './fetchers/news-fetcher';
+import { aggregateSearch as fetcherAggregateSearch } from './fetchers/index';
 export { fetchArticleById } from './fetchers/index';
 import { getClientApiKey } from './ai-client';
 
@@ -197,22 +196,16 @@ export async function getTrendingArticles(
   return allArticles.slice(0, 20);
 }
 
-// ─── 语义搜索（可选，需要用户填入 OpenAI API Key）────────────
-// 当用户在设置页填入 OpenAI Key 后，可以使用语义搜索。
-// 详见 lib/embeddings.ts（第二步实现）
+// ─── 语义搜索（TODO: 待实现）────────────────────────────────
+// 需要用户在设置页填入 OpenAI/DeepSeek API Key 后启用。
+// 目前为占位函数，直接返回原始结果。
 export async function semanticSearch(
   query: string,
   articles: Article[],
   limit = 20
 ): Promise<Article[]> {
-  // 检查用户是否配置了 OpenAI Key
   const apiKey = getClientApiKey();
-  if (!apiKey) {
-    // 未配置 Key，返回原始结果
-    return articles.slice(0, limit);
-  }
-
-  // 第二步实现：调用 OpenAI embeddings API，计算向量相似度
-  // 暂时返回原始结果
+  if (!apiKey) return articles.slice(0, limit);
+  // TODO: 调用 embeddings API 计算向量相似度
   return articles.slice(0, limit);
 }
