@@ -52,6 +52,17 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
       tags: sp.tags ? sp.tags.split(',').filter(Boolean) : [],
       clickCount: sp.clicks ? parseInt(sp.clicks) : 0,
     };
+
+    // 对学术论文来源，尝试从 API 补充完整摘要（URL 传参可能被截断或为空）
+    if ((id.startsWith('openalex-') || id.startsWith('pubmed-') || id.startsWith('arxiv-'))
+        && article.summary.length < 80) {
+      try {
+        const fetched = await fetchArticleById(id);
+        if (fetched && fetched.summary && fetched.summary.length > article.summary.length) {
+          article = { ...article, ...fetched, id };
+        }
+      } catch { /* 保持 URL 参数版本 */ }
+    }
   }
 
   // ─── 策略二：URL 参数没有，尝试从 API 获取 ──────────────────
@@ -250,7 +261,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             <ul className="space-y-3">
               {related.map((r) => (
                 <li key={r.id}>
-                  <Link href={`/article/${r.id}?title=${encodeURIComponent(r.title)}&source=${encodeURIComponent(r.source)}&date=${encodeURIComponent(r.publishedDate)}&authors=${encodeURIComponent(r.authors.join(','))}&tags=${encodeURIComponent(r.tags.join(','))}&summary=${encodeURIComponent(r.summary.slice(0, 500))}&type=${encodeURIComponent(r.sourceType)}&url=${encodeURIComponent(r.url)}&clicks=${r.clickCount}`} className="block text-sm hover:text-primary transition-colors line-clamp-1">
+                  <Link href={`/article/${r.id}?title=${encodeURIComponent(r.title)}&source=${encodeURIComponent(r.source)}&date=${encodeURIComponent(r.publishedDate)}&authors=${encodeURIComponent(r.authors.join(','))}&tags=${encodeURIComponent(r.tags.join(','))}&summary=${encodeURIComponent(r.summary.slice(0, 2000))}&type=${encodeURIComponent(r.sourceType)}&url=${encodeURIComponent(r.url)}&clicks=${r.clickCount}`} className="block text-sm hover:text-primary transition-colors line-clamp-1">
                     {r.title}
                   </Link>
                   <p className="text-xs text-muted-foreground mt-0.5">

@@ -283,14 +283,15 @@ function parseOpenAlexDate(work: Record<string, unknown>): string {
  *
  * OpenAlex abstract_inverted_index 格式示例：
  * {
- *   "Background:": [{ "start": 144, "end": 155, "sentences_before": 2, ... }],
- *   "and":         [{ "start": 156, "end": 159, ... }],
+ *   "Background:": [144],
+ *   "and":         [156],
  *   ...
  * }
  *
- * 注意：每个词对应一个或多个位置对象，需提取所有位置并按 start 排序。
+ * 注意：position 值可能是数字（直接表示位置），也可能是 { start, end } 对象。
+ * 每个词对应一个或多个位置，需提取所有位置并按 position 值排序。
  */
-function reconstructAbstract(invertedIndex: Record<string, OpenAlexPosition[]> | null): string {
+function reconstructAbstract(invertedIndex: Record<string, number[] | OpenAlexPosition[]> | null): string {
   if (!invertedIndex) return '';
 
   try {
@@ -298,10 +299,12 @@ function reconstructAbstract(invertedIndex: Record<string, OpenAlexPosition[]> |
 
     for (const [word, positions] of Object.entries(invertedIndex)) {
       if (!positions || positions.length === 0) continue;
-      for (const posObj of positions) {
-        // 每个位置对象有 start 属性表示在摘要中的起始位置
-        if (typeof posObj.start === 'number') {
-          words.push({ pos: posObj.start, word });
+      for (const posEntry of positions) {
+        // 兼容两种格式：直接数字 或 { start: number } 对象
+        if (typeof posEntry === 'number') {
+          words.push({ pos: posEntry, word });
+        } else if (typeof posEntry === 'object' && posEntry !== null && typeof posEntry.start === 'number') {
+          words.push({ pos: posEntry.start, word });
         }
       }
     }
