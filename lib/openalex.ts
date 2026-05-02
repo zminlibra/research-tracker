@@ -21,10 +21,13 @@ function getApiKey(): string | undefined {
   const globalKey = typeof globalThis !== 'undefined' ? ((globalThis as Record<string, unknown>).OPENALEX_API_KEY as string | undefined) : undefined;
   const key = nodeKey || globalKey;
 
-  if (key) {
-    console.log('[OpenAlex] API Key loaded (length:', key.length, ')');
-  } else {
-    console.warn('[OpenAlex] API Key not found in environment variables');
+  // 仅在开发环境输出日志
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
+    if (key) {
+      console.log('[OpenAlex] API Key loaded');
+    } else {
+      console.warn('[OpenAlex] API Key not found in environment variables');
+    }
   }
   return key;
 }
