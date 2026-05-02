@@ -224,33 +224,41 @@ function extractKeywords(query: string, title: string): string[] {
 function matchesQuery(itemTitle: string, itemDesc: string, query: string): boolean {
   if (!query) return true;
 
-  // 中文查询：检查标题或描述是否包含任意一个查询字词
+  const haystack = `${itemTitle} ${itemDesc}`.toLowerCase();
+
+  // 中文查询：英文 RSS/HN 源不含汉字，无法用中文字符做精确匹配。
+  // 但用户搜中文说明想看相关领域的新闻，这里放宽条件：
+  //   - 标题/描述包含任意中文关键词 → 通过
+  //   - 否则标题非空且长度足够 → 也通过（宁可多召回，搜后用户自己过滤）
   if (/[\u4e00-\u9fff]/.test(query)) {
-    const haystack = `${itemTitle} ${itemDesc}`;
-    // 将查询拆分为单个汉字和词组
+    // 先尝试在 haystack 中匹配中文字符（少数中文 RSS 如 36kr 可用）
     const chars = query.replace(/\s+/g, '').split('');
-    // 至少匹配 2 个汉字或查询中的连续片段
     let matchCount = 0;
     for (const char of chars) {
       if (haystack.includes(char)) matchCount++;
     }
-    // 中文查询：至少匹配 30% 的字符
-    return matchCount >= Math.max(2, chars.length * 0.3);
+    if (matchCount >= Math.min(2, chars.length)) {
+      return true;
+    }
+    // 英文源不含汉字，放宽：标题有实质内容即可
+    // 避免把无意义的 filler item 带进来
+    const meaningfulTitle = itemTitle.replace(/[^a-zA-Z0-9]/g, ' ').trim();
+    return meaningfulTitle.length > 10;
   }
 
   // 英文查询：不区分大小写，任一搜索词匹配即可
   const lower = query.toLowerCase();
   const terms = lower.split(/\s+/).filter(t => t.length > 0);
-  const haystack = `${itemTitle} ${itemDesc}`.toLowerCase();
+  const haystackEN = `${itemTitle} ${itemDesc}`.toLowerCase();
 
   // 短词（<=2 字符）要求精确单词匹配
   // 长词用子串匹配
   return terms.some((term) => {
     if (term.length <= 2) {
       const wordRegex = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-      return wordRegex.test(haystack);
+      return wordRegex.test(haystackEN);
     }
-    return haystack.includes(term);
+    return haystackEN.includes(term);
   });
 }
 

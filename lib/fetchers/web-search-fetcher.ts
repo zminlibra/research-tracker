@@ -9,7 +9,7 @@ import { searchWeb as apiSearch } from '../web-search';
 
 export class WebSearchFetcher implements Fetcher {
   name = 'Web Search';
-  sourceType = 'web' as const;
+  sourceType = 'news' as const;
 
   async search(options: SearchOptions): Promise<Article[]> {
     const { query, limit = 15 } = options;
