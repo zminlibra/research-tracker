@@ -12,6 +12,7 @@
  */
 
 import type { Fetcher, SearchOptions } from './base-fetcher';
+import { getClickCounts } from '../kv';
 
 // 各数据源实现（search 用 singleton 实例）
 import { ArxivFetcher } from './arxiv-fetcher';
@@ -95,6 +96,16 @@ export async function aggregateSearch(
       }
     }
   }
+
+  // 从 KV 批量加载真实点击计数
+  try {
+    const clickCounts = await getClickCounts(allArticles.map((a) => a.id));
+    for (const article of allArticles) {
+      if (clickCounts[article.id] !== undefined) {
+        article.clickCount = clickCounts[article.id];
+      }
+    }
+  } catch { /* KV 不可用时保持默认值 */ }
 
   // 重排序（综合评分）
   const scored = allArticles.map((article) => ({

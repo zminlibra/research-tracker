@@ -6,6 +6,7 @@ import CompareButton from '@/components/CompareButton';
 import FavoriteButton from '@/components/FavoriteButton';
 import ReadingTracker from '@/components/ReadingTracker';
 import { aggregateSearch, fetchArticleById } from '@/lib/search';
+import { incrementClickCount } from '@/lib/kv';
 import type { Article } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -162,6 +163,14 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
     }
   }
 
+  // ─── 记录点击计数（KV）──────────────────────────────────────
+  if (article) {
+    try {
+      const clicks = await incrementClickCount(article.id);
+      article.clickCount = clicks;
+    } catch { /* KV 不可用时忽略 */ }
+  }
+
   // ─── 相关推荐 ────────────────────────────────────────────────
   if (article && article.tags.length > 0) {
     try {
@@ -203,6 +212,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           <span>来源：{article.source}</span>
           {article.publishedDate && <span>发布日期：{article.publishedDate}</span>}
           {article.authors.length > 0 && <span>作者：{article.authors.join(', ')}</span>}
+          <span className="text-primary font-medium">{article.clickCount} 次点击</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

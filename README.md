@@ -201,9 +201,8 @@ research-tracker/
 │   │   ├── news-fetcher.ts         # RSS + HN 新闻
 │   │   └── web-search-fetcher.ts   # SearXNG 搜索
 │   ├── fulltext-fetcher.ts         # 全文获取
-│   └── embeddings.ts               # 文本向量化
-├── data/
-│   └── click-counts.json            # 点击计数（本地文件，建议迁移到 KV）
+│   ├── embeddings.ts               # 文本向量化
+│   └── kv.ts                       # Cloudflare KV（点击计数）
 ├── open-next.config.ts              # Cloudflare 适配器配置
 └── wrangler.toml                    # Cloudflare Workers 配置
 ```
@@ -214,7 +213,7 @@ research-tracker/
 
 | 问题 | 说明 | 优先级 |
 |------|------|--------|
-| 点击计数多实例不一致 | `click-counts.json` 本地文件在 Cloudflare 多实例不经共享，建议迁到 Cloudflare KV | 中 |
+| 点击计数需配置 KV | 需在 Cloudflare Dashboard 创建 KV namespace 并在 wrangler.toml 填入 id | 中 |
 | 邮件通知需配置 Cron | `/api/notify` 已实现，需配置定时触发器（如 GitHub Actions） | 中 |
 | SMTP 环境变量 | 邮件功能需配置 SMTP 相关环境变量 | 中 |
 
