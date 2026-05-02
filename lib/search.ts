@@ -56,7 +56,7 @@ export async function aggregateSearch(
   page = 1,
   pageSize = 20,
   sortBy: 'relevance' | 'date' | 'clicks' = 'relevance',
-  sourceFilter: 'all' | 'paper' | 'news' | 'arxiv' | 'pubmed' | 'openalex' | 'ieee' = 'all',
+  sourceFilter: 'all' | 'paper' | 'news' | 'arxiv' | 'pubmed' | 'openalex' = 'all',
   filters?: { yearFrom?: number; yearTo?: number; author?: string },
   chineseOnly = false,
 ): Promise<SearchResult> {

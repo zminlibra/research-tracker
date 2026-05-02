@@ -12,8 +12,8 @@
 
 ### 多源数据聚合
 - **arXiv** — 预印本论文（实时 API）
+- **OpenAlex** — 全球学术元数据（2 亿+ 论文，免费 API）
 - **PubMed** — 生物医学文献（免费 API）
-- **IEEE Xplore** — 工程技术文献（需 API Key）
 - **SearXNG** — 聚合 Google / Bing 的网页搜索结果
 - **RSS + Hacker News** — 科技新闻与热门讨论
 

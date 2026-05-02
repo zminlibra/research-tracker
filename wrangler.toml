@@ -10,9 +10,7 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
-# OpenAlex API Key（Freemium，每日 $1 免费额度 = ~1000 次搜索）
-# 本地开发：从 .env.local 或 .dev.vars 读取（均已 gitignore）
-# Cloudflare Pages 生产：在 Dashboard → Settings → Environment Variables 中配置
-# 详见 .env.local 和 .dev.vars.example 文件
-# [vars]
-# OPENALEX_API_KEY = "your-key-here"
+[vars]
+# 本地 `wrangler dev` 从这里读取环境变量
+# ⚠️ 请确保 .gitignore 已包含 wrangler.toml（防止误提交 Key）
+OPENALEX_API_KEY = "05659snR8lF8VrvKmiYsOf"

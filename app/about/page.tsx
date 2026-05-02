@@ -9,7 +9,7 @@ export default function AboutPage() {
         <h2 className="text-lg font-bold text-secondary mb-3">ResearchTracker 是什么？</h2>
         <p className="text-text-secondary leading-relaxed text-sm">
           ResearchTracker 是一个科研与行业发展动态追踪平台。输入你感兴趣的关键词，
-          平台会实时从全球多个数据源（arXiv、OpenAlex、PubMed、IEEE、Hacker News 等）
+          平台会实时从全球多个数据源（arXiv、OpenAlex、PubMed、Hacker News 等）
           抓取相关的最新论文、新闻报道和行业动态，并对内容进行智能总结和洞察分析。
         </p>
       </section>
@@ -42,7 +42,6 @@ export default function AboutPage() {
           <li><strong>arXiv</strong> — 全球最大的学术预印本平台</li>
           <li><strong>OpenAlex</strong> — 开放学术元数据（覆盖 2 亿+ 论文）</li>
           <li><strong>PubMed</strong> — 生物医学文献数据库</li>
-          <li><strong>IEEE Xplore</strong> — 工程技术文献库</li>
           <li><strong>Hacker News</strong> — 全球科技社区热门讨论</li>
           <li><strong>Reddit</strong> — r/science、r/technology 等科技板块</li>
         </ul>

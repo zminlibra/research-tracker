@@ -13,8 +13,7 @@ export async function GET(request: NextRequest) {
       | 'news'
       | 'arxiv'
       | 'pubmed'
-      | 'openalex'
-      | 'ieee') || 'all';
+      | 'openalex') || 'all';
   const chinese = searchParams.get('chinese') === '1';
 
   if (!query.trim()) {

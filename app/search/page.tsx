@@ -63,7 +63,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     arxiv: 'arXiv',
     pubmed: 'PubMed',
     openalex: 'OpenAlex',
-    ieee: 'IEEE',
     news: '新闻/报道',
   };
   const sourceKeys = Object.keys(sourceLabels);
@@ -74,7 +73,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     if (s.includes('arxiv'))      return 'bg-green-700 text-white border-green-700';
     if (s.includes('pubmed'))     return 'bg-blue-700 text-white border-blue-700';
     if (s.includes('openalex'))   return 'bg-purple-700 text-white border-purple-700';
-    if (s.includes('ieee'))       return 'bg-red-700 text-white border-red-700';
     if (s.includes('news') || s.includes('hacker') || s.includes('rss'))
                                     return 'bg-gray-500 text-white border-gray-500';
     return 'bg-secondary text-secondary-foreground border-transparent';

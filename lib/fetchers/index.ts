@@ -15,30 +15,27 @@ import type { Fetcher, SearchOptions } from './base-fetcher';
 
 // 各数据源实现（search 用 singleton 实例）
 import { ArxivFetcher } from './arxiv-fetcher';
-import { IEEEFetcher } from './ieee-fetcher';
 import { OpenAlexFetcher } from './openalex-fetcher';
 import { PubMedFetcher } from './pubmed-fetcher';
 import { WebSearchFetcher } from './web-search-fetcher';
 import { NewsFetcher } from './news-fetcher';
 
-// ─── 默认启用的数据源 ─────────────────────────────────────────────
+// ── 默认启用的数据源 ─────────────────────────────────────────────
 // 顺序即为搜索时的并发调用顺序。
-// IEEE / PubMed 需要 API Key，Fetcher 内部会在 Key 为空时静默跳过。
 export const defaultFetchers: Fetcher[] = [
   new ArxivFetcher(),
-  new IEEEFetcher(),
   new OpenAlexFetcher(),
   new PubMedFetcher(),
   new WebSearchFetcher(),
   new NewsFetcher(),
 ];
 
-// ─── 按名称获取 Fetcher ────────────────────────────────────────────
+// ── 按名称获取 Fetcher ────────────────────────────────────────────
 export function getFetcherByName(name: string): Fetcher | undefined {
   return defaultFetchers.find((f) => f.name === name);
 }
 
-// ─── 服务端搜索聚合器 ─────────────────────────────────────────────
+// ── 服务端搜索聚合器 ─────────────────────────────────────────────
 // 供 app/api/search/route.ts 调用。
 // 客户端搜索见 lib/search-client.ts（直接在浏览器中调用各数据源）。
 export async function aggregateSearch(
@@ -55,7 +52,6 @@ export async function aggregateSearch(
         if (sourceFilter === 'arxiv')   return f.name === 'arXiv';
         if (sourceFilter === 'pubmed')  return f.name === 'PubMed';
         if (sourceFilter === 'openalex') return f.name === 'OpenAlex';
-        if (sourceFilter === 'ieee')    return f.name === 'IEEE Xplore';
         // 兼容旧的逻辑分组
         if (sourceFilter === 'paper') return f.sourceType === 'paper';
         if (sourceFilter === 'news')  return f.sourceType === 'news';
@@ -115,7 +111,7 @@ export async function aggregateSearch(
   };
 }
 
-// ─── 重排序评分函数 ─────────────────────────────────────────────
+// ── 重排序评分函数 ─────────────────────────────────────────────
 // 核心策略：各来源加权固定，关键词匹配锦上添花，避免摘要长度造成的不公平
 function rerankScore(article: import('../types').Article, query: string): number {
   let score = 0;
@@ -126,8 +122,6 @@ function rerankScore(article: import('../types').Article, query: string): number
 
   if (idLower.startsWith('pubmed-') || srcLower.includes('pubmed')) {
     score += 50; // PubMed：同行评审生物医学，高度相关
-  } else if (idLower.startsWith('ieee-') || srcLower.includes('ieee') || srcLower.includes('acm')) {
-    score += 35; // IEEE/ACM：工程技术权威
   } else if (idLower.startsWith('arxiv-') || srcLower.includes('arxiv')) {
     score += 5; // arXiv：预印本，低权重
   }
@@ -169,14 +163,13 @@ function rerankScore(article: import('../types').Article, query: string): number
   return score;
 }
 
-// ─── 按 ID 获取文章（自动路由到对应 Fetcher）────────────────────
+// ── 按 ID 获取文章（自动路由到对应 Fetcher）────────────────────
 export async function fetchArticleById(id: string): Promise<import('../types').Article | null> {
   // 先判断来源前缀（优先匹配前缀，兜底用名称匹配）
   const fetcherMap: Array<{ prefixes: string[]; fetcher: Fetcher }> = [
     { prefixes: ['arxiv'], fetcher: new ArxivFetcher() },
     { prefixes: ['openalex'], fetcher: new OpenAlexFetcher() },
     { prefixes: ['pubmed'], fetcher: new PubMedFetcher() },
-    { prefixes: ['ieee'], fetcher: new IEEEFetcher() },
     { prefixes: ['hn', 'news', 'rss', 'web'], fetcher: new NewsFetcher() },
   ];
 
@@ -194,8 +187,7 @@ export async function fetchArticleById(id: string): Promise<import('../types').A
   const sourceName = id.split('-')[0].toLowerCase();
   const fetcher = defaultFetchers.find(
     (f) => f.name.toLowerCase().includes(sourceName) ||
-      (sourceName === 'arxiv' && f.name === 'ArXiv') ||
-      (sourceName === 'ieee' && f.name === 'IEEE Xplore') ||
+      (sourceName === 'arxiv' && f.name === 'arXiv') ||
       (sourceName === 'openalex' && f.name === 'OpenAlex') ||
       (sourceName === 'pubmed' && f.name === 'PubMed') ||
       (sourceName === 'web' && f.name === 'Web Search') ||
