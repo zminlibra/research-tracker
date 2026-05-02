@@ -5,8 +5,7 @@ import ChatWithPaper from '@/components/ChatWithPaper';
 import CompareButton from '@/components/CompareButton';
 import FavoriteButton from '@/components/FavoriteButton';
 import ReadingTracker from '@/components/ReadingTracker';
-import { getArxivById } from '@/lib/arxiv';
-import { aggregateSearch } from '@/lib/search';
+import { aggregateSearch, fetchArticleById } from '@/lib/search';
 import type { Article } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,7 +62,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
         error = '该文章来源（Semantic Scholar / Crossref）已被移除，请从搜索页重新查找该文章。';
       } else if (id.startsWith('arxiv-')) {
         const arxivId = id.replace('arxiv-', '');
-        try { article = await getArxivById(arxivId); } catch {}
+        try { article = await fetchArticleById(id); } catch {}
         if (!article) {
           article = {
             id, title: 'arXiv 学术论文', summary: '该内容来自 arXiv。详细信息请点击下方"查看原文"链接获取完整论文。',
@@ -109,20 +108,26 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
         }
       } else if (id.startsWith('pubmed-')) {
         const pmid = id.replace('pubmed-', '');
-        article = {
-          id, title: 'PubMed 学术论文', summary: '该内容来自 PubMed。详细信息请点击下方"查看原文"链接获取完整论文。',
-          source: 'PubMed', sourceType: 'paper',
-          url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
-          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
-        };
+        try { article = await fetchArticleById(id); } catch {}
+        if (!article) {
+          article = {
+            id, title: 'PubMed 学术论文', summary: '该内容来自 PubMed。详细信息请点击下方"查看原文"链接获取完整论文。',
+            source: 'PubMed', sourceType: 'paper',
+            url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+            imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+          };
+        }
       } else if (id.startsWith('openalex-')) {
         const workId = id.replace('openalex-', '');
-        article = {
-          id, title: 'OpenAlex 学术论文', summary: '该内容来自 OpenAlex。详细信息请点击下方"查看原文"链接获取完整论文。',
-          source: 'OpenAlex', sourceType: 'paper',
-          url: `https://openalex.org/works/${workId}`,
-          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
-        };
+        try { article = await fetchArticleById(id); } catch {}
+        if (!article) {
+          article = {
+            id, title: 'OpenAlex 学术论文', summary: '该内容来自 OpenAlex。详细信息请点击下方"查看原文"链接获取完整论文。',
+            source: 'OpenAlex', sourceType: 'paper',
+            url: `https://openalex.org/works/${workId}`,
+            imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+          };
+        }
       } else if (id.startsWith('web-') || id.startsWith('news-')) {
         let originalUrl = '#';
         try {
@@ -135,8 +140,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           publishedDate: new Date().toISOString().split('T')[0], authors: [], tags: [], clickCount: 0,
         };
       } else {
-        // 未知格式：当作 arXiv ID 尝试
-        try { article = await getArxivById(id); } catch {}
+        // 未知格式：尝试用 fetchArticleById
+        try { article = await fetchArticleById(id); } catch {}
         if (!article) {
           error = '文章未找到';
         }

@@ -9,11 +9,13 @@
  * 向后兼容：
  *   - 导出 aggregateSearch（服务端用）
  *   - 导出 getTrendingArticles（首页热门用）
+ *   - 导出 fetchArticleById（详情页用）
  */
 
 import type { Article, SearchResult } from './types';
 import { defaultFetchers, aggregateSearch as fetcherAggregateSearch } from './fetchers/index';
 import { fetchTrendingNews } from './fetchers/news-fetcher';
+export { fetchArticleById } from './fetchers/index';
 import { getClientApiKey } from './ai-client';
 
 // ─── localStorage 持久缓存（客户端用）─────────────────────────
