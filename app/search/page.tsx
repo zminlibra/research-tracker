@@ -61,7 +61,26 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const totalPages = Math.ceil(totalCount / 20);
   const sortLabels: Record<string, string> = { relevance: '按相关性', date: '按时间', clicks: '按热度' };
-  const sourceLabels: Record<string, string> = { all: '全部', paper: '学术论文', news: '新闻/报道' };
+  const sourceLabels: Record<string, string> = {
+    all: '全部',
+    arxiv: 'arXiv',
+    pubmed: 'PubMed',
+    openalex: 'OpenAlex',
+    news: '新闻/报道',
+  };
+  const sourceKeys = Object.keys(sourceLabels);
+
+  // 来源徽章颜色映射
+  function getSourceBadgeClass(source: string): string {
+    const s = source.toLowerCase();
+    if (s.includes('arxiv'))      return 'bg-green-700 text-white border-green-700';
+    if (s.includes('pubmed'))     return 'bg-blue-700 text-white border-blue-700';
+    if (s.includes('openalex'))   return 'bg-purple-700 text-white border-purple-700';
+    if (s.includes('ieee'))       return 'bg-red-700 text-white border-red-700';
+    if (s.includes('news') || s.includes('hacker') || s.includes('rss'))
+                                    return 'bg-gray-500 text-white border-gray-500';
+    return 'bg-secondary text-secondary-foreground border-transparent';
+  }
 
   // 构建带筛选参数的 URL
   const buildUrl = (overrides: Record<string, string>) => {
@@ -113,25 +132,25 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             ))}
           </div>
           <span className="text-border hidden sm:block">|</span>
-          <div className="flex items-center gap-1.5 text-sm">
+          <div className="flex items-center gap-1.5 text-sm flex-wrap">
             <span className="text-muted-foreground">来源：</span>
-            {Object.entries(sourceLabels).map(([key, label]) => (
+            {sourceKeys.map((key) => (
               <Link key={key} href={buildUrl({ source: key })}>
                 <Badge variant={source === key ? 'default' : 'secondary'}
                   className={`${source !== key ? 'cursor-pointer hover:bg-accent' : 'cursor-default'} ${source === key ? 'bg-secondary' : ''}`}>
-                  {label}
+                  {sourceLabels[key]}
                 </Badge>
               </Link>
             ))}
-            <span className="text-border hidden sm:block">|</span>
-            <Link href={buildUrl({ chinese: chinese ? '' : '1' })}>
-              <Badge
-                variant={chinese ? 'default' : 'secondary'}
-                className={`${!chinese ? 'cursor-pointer hover:bg-accent' : 'cursor-default'} border ${chinese ? 'bg-amber-600 border-amber-600 text-white' : 'border-amber-400 text-amber-500'}`}>
-                🇨🇳 中文论文
-              </Badge>
-            </Link>
           </div>
+          <span className="text-border hidden sm:block">|</span>
+          <Link href={buildUrl({ chinese: chinese ? '' : '1' })}>
+            <Badge
+              variant={chinese ? 'default' : 'secondary'}
+              className={`${!chinese ? 'cursor-pointer hover:bg-accent' : 'cursor-default'} border ${chinese ? 'bg-amber-600 border-amber-600 text-white' : 'border-amber-400 text-amber-500'}`}>
+              🇨🇳 中文论文
+            </Badge>
+          </Link>
         </div>
 
         {/* 高级筛选：年份范围 + 作者 */}
@@ -178,10 +197,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   </h3>
                 </Link>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mb-3">
-                  <Badge variant={article.sourceType === 'paper' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                    {article.sourceType === 'paper' ? '学术论文' : '新闻/报道'}
+                  <Badge className={`text-[10px] px-1.5 py-0 border ${getSourceBadgeClass(article.source)}`}>
+                    {article.source}
                   </Badge>
-                  <span>{article.source}</span>
+                  <span>{article.publishedDate}</span>
                   <span>{article.publishedDate}</span>
                   {article.authors.length > 0 && (
                     <span>作者：{article.authors.slice(0, 3).join(', ')}</span>
