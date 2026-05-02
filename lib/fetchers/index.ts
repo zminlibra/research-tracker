@@ -57,10 +57,13 @@ export async function aggregateSearch(
       })
     : defaultFetchers;
 
+  // 扩大 limit 以确保小众来源有机会进入排序候选
+  const expandedLimit = limit * 3;
+
   // 并发调用所有启用的数据源
   const results = await Promise.allSettled(
     activeFetchers.map((fetcher) =>
-      fetcher.search({ ...searchOptions, query }).then((articles) => ({
+      fetcher.search({ ...searchOptions, query, limit: expandedLimit }).then((articles) => ({
         name: fetcher.name,
         articles,
       }))
@@ -120,8 +123,12 @@ function rerankScore(article: import('../types').Article, query: string): number
     score += count + (inTitle ? 5 : 0);
   }
 
-  // 2. 来源权威性加分
-  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'PubMed', 'OpenAlex'];
+  // 2. 来源权威性加分（重要：OpenAlex 覆盖所有期刊，给其额外加权以平衡 arXiv 预印本优势）
+  const idLower = article.id.toLowerCase();
+  if (idLower.startsWith('openalex-')) {
+    score += 15; // OpenAlex 论文加权，使来自正式期刊的论文有机会出现在前排
+  }
+  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'PubMed'];
   if (authoritySources.some((s) => article.source.includes(s))) {
     score += 3;
   }
