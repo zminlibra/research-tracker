@@ -64,18 +64,3 @@ export default function CompareButton({ article }: { article: Article }) {
     </div>
   );
 }
-
-export function CompareCount() {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    setCount(getCompareList().length);
-    const interval = setInterval(() => setCount(getCompareList().length), 500);
-    return () => clearInterval(interval);
-  }, []);
-  if (count === 0) return null;
-  return (
-    <a href="/compare" className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full hover:bg-primary/20 transition-colors">
-      对比 ({count})
-    </a>
-  );
-}

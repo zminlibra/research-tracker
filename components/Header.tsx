@@ -13,11 +13,6 @@ function CompareCount() {
   useEffect(() => {
     try { setCount(JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]').length); }
     catch { setCount(0); }
-    const interval = setInterval(() => {
-      try { setCount(JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]').length); }
-      catch { setCount(0); }
-    }, 1000);
-    return () => clearInterval(interval);
   }, []);
   if (count === 0) return null;
   return (
