@@ -9,47 +9,73 @@
 import type { Article } from './types';
 
 const OPENALEX_API = 'https://api.openalex.org';
+const MAILTO = 'research-tracker@example.com';
 
+/**
+ * 搜索 OpenAlex 论文。
+ * 支持分页，返回 Article[] 数组。
+ */
 export async function searchOpenAlex(
   query: string,
   perPage = 20,
-  page = 1
+  page = 1,
 ): Promise<Article[]> {
-  const offset = (page - 1) * perPage;
-
   try {
-    const url = `${OPENALEX_API}/works?search=${encodeURIComponent(query)}&per-page=${perPage}&page=${page}&mailto=research-tracker@example.com`;
+    // OpenAlex 使用 page + per-page 分页（不是 offset）
+    const url = `${OPENALEX_API}/works?search=${encodeURIComponent(query)}&per-page=${perPage}&page=${page}&mailto=${MAILTO}`;
+
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'ResearchTracker/1.0 (https://researchtracker.win; mailto:research-tracker@example.com)' },
-      next: { revalidate: 30 * 60 }, // 缓存 30 分钟
+      headers: {
+        'User-Agent': 'ResearchTracker/1.0 (https://researchtracker.win; mailto:' + MAILTO + ')',
+        'Accept': 'application/json',
+      },
     });
 
     if (!res.ok) {
-      console.error('OpenAlex API error:', res.status, res.statusText);
+      console.error('[OpenAlex] HTTP error:', res.status, res.statusText);
       return [];
     }
 
     const data = await res.json();
-    return (data.results || []).map(toArticle);
+    const results = data.results || [];
+
+    if (results.length === 0) {
+      // API 返回成功但无结果
+      return [];
+    }
+
+    return results.map(toArticle);
   } catch (error) {
-    console.error('OpenAlex fetch error:', error);
+    console.error('[OpenAlex] fetch error:', error);
     return [];
   }
 }
 
+/**
+ * 根据 OpenAlex work ID 获取单篇文章详情。
+ */
 export async function getOpenAlexById(id: string): Promise<Article | null> {
   try {
-    const workId = id.replace('openalex-', '');
-    const url = `${OPENALEX_API}/works/${workId}?mailto=research-tracker@example.com`;
+    // id 格式：openalex-W2021099440 或 W2021099440
+    const workId = id.replace('openalex-', '').replace('https://openalex.org/', '');
+    const url = `${OPENALEX_API}/works/${workId}?mailto=${MAILTO}`;
+
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'ResearchTracker/1.0 (https://researchtracker.win; mailto:research-tracker@example.com)' },
-      next: { revalidate: 60 * 60 }, // 缓存 1 小时
+      headers: {
+        'User-Agent': 'ResearchTracker/1.0 (https://researchtracker.win; mailto:' + MAILTO + ')',
+        'Accept': 'application/json',
+      },
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error('[OpenAlex] fetchById HTTP error:', res.status);
+      return null;
+    }
+
     const data = await res.json();
     return toArticle(data);
-  } catch {
+  } catch (error) {
+    console.error('[OpenAlex] fetchById error:', error);
     return null;
   }
 }
@@ -60,43 +86,56 @@ function toArticle(work: Record<string, unknown>): Article {
   const openalexId: string = (work.id as string) || '';
   const workId = openalexId.replace('https://openalex.org/', '');
 
-  // DOI 链接
+  // DOI 链接（优先使用 DOI 作为跳转 URL）
   const doi: string = (work.doi as string) || '';
   const url = doi || openalexId || '#';
 
-  // 标题
-  const title: string = ((work.title as string) || '无标题').replace(/\s+/g, ' ');
+  // 标题（确保不为空）
+  const titleRaw = (work.title as string) || '';
+  const title: string = titleRaw.replace(/\s+/g, ' ').trim() || '无标题';
 
   // 摘要（OpenAlex 的 abstract_inverted_index 需要反转还原）
-  const invertedIndex = work.abstract_inverted_index as Record<string, Array<[number, number]>> | null;
+  // 格式：{ "word": [{ "start": 0, "end": 5, ... }, ...], ... }
+  const invertedIndex = work.abstract_inverted_index as Record<string, OpenAlexPosition[]> | null;
   const summary = reconstructAbstract(invertedIndex);
 
-  // 作者
-  const authorships = (work.authorships as Array<{ author: { display_name: string }; author_position: string }>) || [];
-  const authors = authorships.map((a) => a.author?.display_name || '').filter(Boolean);
+  // 作者列表
+  const authorships = (work.authorships as AuthorshipEntry[]) || [];
+  const authors = authorships
+    .map((a) => a.author?.display_name?.trim())
+    .filter((name): name is string => Boolean(name));
 
   // 出版日期
   const publicationDate = parseOpenAlexDate(work);
 
-  // 期刊/来源
-  const primaryLocation = work.primary_location as Record<string, unknown> | null;
-  const source = (primaryLocation?.source as Record<string, unknown>)?.display_name as string || '';
-  const journal = (work.host_venue as Record<string, unknown>)?.display_name as string || source;
+  // 期刊/来源名称（多个字段取第一个非空值）
+  const locations = (work.locations as Location[]) || [];
+  const primaryLocation = locations[0];
+  const sourceDisplayName: string =
+    primaryLocation?.source?.display_name ||
+    (work.host_venue as Record<string, unknown>)?.display_name as string ||
+    '';
+  const journal = sourceDisplayName;
 
-  // 标签/主题
-  const topics = (work.topics as Array<{ display_name: string; subfield: { display_name: string }; field: { display_name: string } }>) || [];
-  const tags = topics
-    .slice(0, 5)
-    .map((t) => t.subfield?.display_name || t.field?.display_name || t.display_name);
+  // 标签/主题（前 5 个，取 subfield 或 field 或 topic 名称）
+  const topics = (work.topics as Topic[]) || [];
+  const tags = topics.slice(0, 5).map((t) =>
+    t.subfield?.display_name || t.field?.display_name || t.display_name || ''
+  ).filter(Boolean);
 
-  // DOI 基础点击量（引用量作代理）
+  // 引用量（作为热度代理）
   const citedByCount: number = (work.cited_by_count as number) || 0;
 
+  // 生成稳定 ID：优先用 DOI，其次用 OpenAlex ID
+  const stableId = doi
+    ? `openalex-${encodeURIComponent(doi.replace('https://doi.org/', ''))}`
+    : `openalex-${workId}`;
+
   return {
-    id: `openalex-${workId}`,
+    id: stableId,
     title,
     summary: summary || '暂无摘要（点击查看原文获取完整内容）',
-    source: journal || source || 'OpenAlex',
+    source: journal || 'OpenAlex',
     sourceType: 'paper',
     url,
     imageUrl: null,
@@ -105,6 +144,33 @@ function toArticle(work: Record<string, unknown>): Article {
     tags,
     clickCount: citedByCount,
   };
+}
+
+/** OpenAlex abstract_inverted_index 中每个词条的位置信息 */
+interface OpenAlexPosition {
+  start: number;
+  end: number;
+  sentences_before?: number;
+  sentences_in_sentence?: number;
+  sentences_after?: number;
+}
+
+/** OpenAlex authorships 中的作者条目 */
+interface AuthorshipEntry {
+  author?: { display_name?: string };
+  author_position?: string;
+}
+
+/** OpenAlex locations 中的来源条目 */
+interface Location {
+  source?: { display_name?: string };
+}
+
+/** OpenAlex topics 中的主题条目 */
+interface Topic {
+  display_name?: string;
+  subfield?: { display_name?: string };
+  field?: { display_name?: string };
 }
 
 /** 从 OpenAlex work 对象解析出版日期 */
@@ -125,18 +191,39 @@ function parseOpenAlexDate(work: Record<string, unknown>): string {
   return '';
 }
 
-/** 还原 OpenAlex inverted_index 格式的摘要文本 */
-function reconstructAbstract(invertedIndex: Record<string, Array<[number, number]>> | null): string {
+/**
+ * 还原 OpenAlex inverted_index 格式的摘要文本。
+ *
+ * OpenAlex abstract_inverted_index 格式示例：
+ * {
+ *   "Background:": [{ "start": 144, "end": 155, "sentences_before": 2, ... }],
+ *   "and":         [{ "start": 156, "end": 159, ... }],
+ *   ...
+ * }
+ *
+ * 注意：每个词对应一个或多个位置对象，需提取所有位置并按 start 排序。
+ */
+function reconstructAbstract(invertedIndex: Record<string, OpenAlexPosition[]> | null): string {
   if (!invertedIndex) return '';
+
   try {
-    const words: Array<[number, string]> = [];
+    const words: Array<{ pos: number; word: string }> = [];
+
     for (const [word, positions] of Object.entries(invertedIndex)) {
-      for (const [pos] of positions) {
-        words.push([pos, word]);
+      if (!positions || positions.length === 0) continue;
+      for (const posObj of positions) {
+        // 每个位置对象有 start 属性表示在摘要中的起始位置
+        if (typeof posObj.start === 'number') {
+          words.push({ pos: posObj.start, word });
+        }
       }
     }
-    words.sort((a, b) => a[0] - b[0]);
-    return words.map(([, word]) => word).join(' ');
+
+    if (words.length === 0) return '';
+
+    // 按位置排序，还原原始顺序
+    words.sort((a, b) => a.pos - b.pos);
+    return words.map((w) => w.word).join(' ');
   } catch {
     return '';
   }
