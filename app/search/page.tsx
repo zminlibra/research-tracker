@@ -1,11 +1,26 @@
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
 import { aggregateSearch } from '@/lib/search';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import FavoriteButton from '@/components/FavoriteButton';
+import CompareButton from '@/components/CompareButton';
 
 export const dynamic = 'force-dynamic';
 
 interface SearchPageProps {
-  searchParams: Promise<{ q?: string; page?: string; sort?: string; source?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+    sort?: string;
+    source?: string;
+    yearFrom?: string;
+    yearTo?: string;
+    author?: string;
+  }>;
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
@@ -14,14 +29,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const page = parseInt(params.page || '1', 10);
   const sort = (params.sort as string) || 'relevance';
   const source = (params.source as string) || 'all';
+  const yearFrom = params.yearFrom ? parseInt(params.yearFrom) : undefined;
+  const yearTo = params.yearTo ? parseInt(params.yearTo) : undefined;
+  const author = params.author || '';
 
   if (!query) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <p className="text-text-muted text-lg mb-4">请输入搜索关键词</p>
-        <Link href="/" className="text-primary hover:text-primary-dark transition-colors">
-          返回首页
-        </Link>
+        <p className="text-muted-foreground text-lg mb-4">请输入搜索关键词</p>
+        <Link href="/"><Button variant="outline">返回首页</Button></Link>
       </div>
     );
   }
@@ -31,7 +47,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   let error: string | null = null;
 
   try {
-    const result = await aggregateSearch(query, page, 20, sort as any, source as any);
+    const result = await aggregateSearch(
+      query, page, 20, sort as any, source as any,
+      { yearFrom, yearTo, author: author || undefined }
+    );
     articles = result.articles;
     totalCount = result.totalCount;
   } catch {
@@ -42,155 +61,202 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const sortLabels: Record<string, string> = { relevance: '按相关性', date: '按时间', clicks: '按热度' };
   const sourceLabels: Record<string, string> = { all: '全部', paper: '学术论文', news: '新闻/报道' };
 
+  // 构建带筛选参数的 URL
+  const buildUrl = (overrides: Record<string, string>) => {
+    const p = new URLSearchParams();
+    p.set('q', query);
+    if (overrides.sort !== undefined) p.set('sort', overrides.sort);
+    else if (sort) p.set('sort', sort);
+    if (overrides.source !== undefined) p.set('source', overrides.source);
+    else if (source && source !== 'all') p.set('source', source);
+    if (overrides.yearFrom !== undefined) p.set('yearFrom', overrides.yearFrom);
+    else if (params.yearFrom) p.set('yearFrom', params.yearFrom);
+    if (overrides.yearTo !== undefined) p.set('yearTo', overrides.yearTo);
+    else if (params.yearTo) p.set('yearTo', params.yearTo);
+    if (overrides.author !== undefined) p.set('author', overrides.author);
+    else if (author) p.set('author', author);
+    if (overrides.page !== undefined) p.set('page', overrides.page);
+    else p.set('page', '1'); // 筛选变更时回到第 1 页
+    return `/search?${p.toString()}`;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* 搜索信息 */}
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-secondary mb-1">
-          搜索结果：{query}
+        <h1 className="text-xl font-bold mb-1">
+          搜索结果：<span className="text-primary">{query}</span>
         </h1>
-        <p className="text-sm text-text-muted">
+        <p className="text-sm text-muted-foreground">
           {error ? '搜索出错' : `共找到 ${totalCount} 条结果`}
         </p>
       </div>
 
-      {/* 筛选栏 */}
-      <div className="flex flex-wrap items-center gap-3 mb-6 p-3 bg-bg-light rounded-lg border border-border">
-        {/* 排序方式 */}
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-text-muted">排序：</span>
-          {Object.entries(sortLabels).map(([key, label]) => (
-            <Link
-              key={key}
-              href={`/search?q=${encodeURIComponent(query)}&sort=${key}&source=${source}`}
-              className={`px-3 py-1 rounded text-sm transition-colors ${
-                sort === key
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-text-secondary hover:bg-accent'
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
+      {/* 筛选面板 */}
+      <div className="mb-6 p-4 bg-muted/50 rounded-lg border space-y-3">
+        {/* 排序 + 来源 */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="text-muted-foreground">排序：</span>
+            {Object.entries(sortLabels).map(([key, label]) => (
+              <Link key={key} href={buildUrl({ sort: key })}>
+                <Badge variant={sort === key ? 'default' : 'secondary'}
+                  className={sort !== key ? 'cursor-pointer hover:bg-accent' : 'cursor-default'}>
+                  {label}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+          <span className="text-border hidden sm:block">|</span>
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="text-muted-foreground">来源：</span>
+            {Object.entries(sourceLabels).map(([key, label]) => (
+              <Link key={key} href={buildUrl({ source: key })}>
+                <Badge variant={source === key ? 'default' : 'secondary'}
+                  className={`${source !== key ? 'cursor-pointer hover:bg-accent' : 'cursor-default'} ${source === key ? 'bg-secondary' : ''}`}>
+                  {label}
+                </Badge>
+              </Link>
+            ))}
+          </div>
         </div>
 
-        <span className="text-border hidden sm:block">|</span>
-
-        {/* 来源类型 */}
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-text-muted">来源：</span>
-          {Object.entries(sourceLabels).map(([key, label]) => (
-            <Link
-              key={key}
-              href={`/search?q=${encodeURIComponent(query)}&sort=${sort}&source=${key}`}
-              className={`px-3 py-1 rounded text-sm transition-colors ${
-                source === key
-                  ? 'bg-secondary text-white'
-                  : 'bg-white text-text-secondary hover:bg-accent'
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
+        {/* 高级筛选：年份范围 + 作者 */}
+        <details className="group">
+          <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+            高级筛选 ▾
+          </summary>
+          <form className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3"
+            onSubmit={(e) => { e.preventDefault(); }}>
+            <div className="space-y-1">
+              <Label htmlFor="yearFrom" className="text-xs text-muted-foreground">起始年份</Label>
+              <Input id="yearFrom" type="number" placeholder="如 2020"
+                defaultValue={params.yearFrom || ''}
+                className="h-8 text-sm"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) window.location.href = buildUrl({ yearFrom: v, page: '1' });
+                }} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="yearTo" className="text-xs text-muted-foreground">截止年份</Label>
+              <Input id="yearTo" type="number" placeholder="如 2026"
+                defaultValue={params.yearTo || ''}
+                className="h-8 text-sm"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) window.location.href = buildUrl({ yearTo: v, page: '1' });
+                }} />
+            </div>
+            <div className="space-y-1 col-span-2 sm:col-span-1">
+              <Label htmlFor="author" className="text-xs text-muted-foreground">作者名</Label>
+              <Input id="author" type="text" placeholder="如 Smith"
+                defaultValue={author}
+                className="h-8 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const v = (e.target as HTMLInputElement).value;
+                    window.location.href = buildUrl({ author: v, page: '1' });
+                  }
+                }} />
+            </div>
+            {/* 清除筛选 */}
+            {(params.yearFrom || params.yearTo || author) && (
+              <div className="flex items-end">
+                <Link href={`/search?q=${encodeURIComponent(query)}`} className="text-xs text-destructive hover:underline pb-1">
+                  清除筛选
+                </Link>
+              </div>
+            )}
+          </form>
+        </details>
       </div>
 
       {/* 错误提示 */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center mb-8">
-          <p className="text-red-600 mb-2">{error}</p>
-          <Link href="/" className="text-primary text-sm hover:underline">返回首页</Link>
-        </div>
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6 text-center">
+            <p className="text-destructive mb-2">{error}</p>
+            <Link href="/"><Button variant="outline" size="sm">返回首页</Button></Link>
+          </CardContent>
+        </Card>
       )}
 
       {/* 结果列表 */}
       {!error && articles.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-text-muted text-lg mb-2">未找到相关结果</p>
-          <p className="text-text-muted text-sm">请尝试更换关键词或筛选条件</p>
+          <p className="text-muted-foreground text-lg mb-2">未找到相关结果</p>
+          <p className="text-muted-foreground text-sm">请尝试更换关键词或筛选条件</p>
         </div>
       )}
 
       {!error && articles.length > 0 && (
         <div className="space-y-4">
           {articles.map((article) => (
-            <article key={article.id} className="bg-white rounded-lg border border-border hover:shadow-md transition-shadow overflow-hidden group">
-              <div className="p-5">
-                {/* 标题 */}
+            <Card key={article.id} className="hover:shadow-md transition-shadow group">
+              <CardContent className="p-5">
                 <Link href={`/article/${article.id}`}>
-                  <h3 className="text-base font-semibold text-secondary hover:text-primary transition-colors mb-2 leading-snug">
+                  <h3 className="text-base font-semibold group-hover:text-primary transition-colors mb-2 leading-snug">
                     {article.title}
                   </h3>
                 </Link>
-
-                {/* 元信息 */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted mb-3">
-                  <span className={`inline-flex items-center gap-1 ${
-                    article.sourceType === 'paper' ? 'text-blue-600' : 'text-green-600'
-                  }`}>
-                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                      article.sourceType === 'paper' ? 'bg-blue-500' : 'bg-green-500'
-                    }`} />
-                    {{ news: '新闻/报道', paper: '学术论文' }[article.sourceType]}
-                  </span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mb-3">
+                  <Badge variant={article.sourceType === 'paper' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                    {article.sourceType === 'paper' ? '学术论文' : '新闻/报道'}
+                  </Badge>
                   <span>{article.source}</span>
                   <span>{article.publishedDate}</span>
                   {article.authors.length > 0 && (
                     <span>作者：{article.authors.slice(0, 3).join(', ')}</span>
                   )}
                 </div>
-
-                {/* 摘要 */}
-                <p className="text-sm text-text-secondary leading-relaxed line-clamp-3 mb-3">
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-3">
                   {article.summary}
                 </p>
-
-                {/* 标签 + 链接 */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-1.5">
                     {article.tags.slice(0, 4).map((tag) => (
-                      <Link
-                        key={tag}
-                        href={`/search?q=${encodeURIComponent(tag)}`}
-                        className="px-2 py-0.5 text-xs bg-accent text-secondary rounded hover:bg-secondary/10 transition-colors"
-                      >
-                        {tag}
+                      <Link key={tag} href={`/search?q=${encodeURIComponent(tag)}`}>
+                        <Badge variant="secondary" className="cursor-pointer hover:bg-accent text-xs">
+                          {tag}
+                        </Badge>
                       </Link>
                     ))}
                   </div>
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:text-primary-dark transition-colors flex items-center gap-1 flex-shrink-0"
-                  >
-                    查看原文 <span>↗</span>
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <CompareButton article={article} />
+                    <FavoriteButton
+                      articleId={article.id}
+                      title={article.title}
+                      source={article.source}
+                      sourceType={article.sourceType}
+                      publishedDate={article.publishedDate}
+                      url={article.url}
+                    />
+                    <a href={article.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1 flex-shrink-0">
+                      查看原文 ↗
+                    </a>
+                  </div>
                 </div>
-              </div>
-            </article>
+              </CardContent>
+            </Card>
           ))}
 
           {/* 分页 */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-6">
               {page > 1 && (
-                <Link
-                  href={`/search?q=${encodeURIComponent(query)}&page=${page - 1}&sort=${sort}&source=${source}`}
-                  className="px-4 py-2 text-sm bg-white border border-border rounded hover:bg-bg-light transition-colors"
-                >
-                  上一页
+                <Link href={buildUrl({ page: String(page - 1) })}>
+                  <Button variant="outline" size="sm">上一页</Button>
                 </Link>
               )}
-              <span className="px-4 py-2 text-sm text-text-muted">
+              <span className="px-4 py-2 text-sm text-muted-foreground">
                 {page} / {totalPages}
               </span>
               {page < totalPages && (
-                <Link
-                  href={`/search?q=${encodeURIComponent(query)}&page=${page + 1}&sort=${sort}&source=${source}`}
-                  className="px-4 py-2 text-sm bg-white border border-border rounded hover:bg-bg-light transition-colors"
-                >
-                  下一页
+                <Link href={buildUrl({ page: String(page + 1) })}>
+                  <Button variant="outline" size="sm">下一页</Button>
                 </Link>
               )}
             </div>

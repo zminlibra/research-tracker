@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface SearchBarProps {
   variant?: 'hero' | 'inline';
@@ -23,22 +25,25 @@ export default function SearchBar({ variant = 'inline', initialQuery = '' }: Sea
     return (
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
         <div className="flex shadow-2xl rounded-xl overflow-hidden ring-4 ring-white/30">
-          <div className="flex-1 bg-white flex items-center">
-            <span className="pl-5 text-text-muted text-lg">🔍</span>
-            <input
+          <div className="flex-1 bg-white flex items-center px-5">
+            <svg className="w-5 h-5 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <Input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="输入关键词，追踪科研与行业最新动态..."
-              className="w-full px-3 py-5 text-lg text-text-primary bg-white outline-none border-0 placeholder:text-gray-400"
+              className="border-0 shadow-none focus-visible:ring-0 text-lg py-6 px-3 bg-transparent"
             />
           </div>
-          <button
+          <Button
             type="submit"
-            className="px-10 py-5 bg-primary hover:bg-primary-dark text-white font-semibold text-lg transition-colors tracking-wide"
+            size="lg"
+            className="rounded-none px-10 py-6 text-lg font-semibold tracking-wide"
           >
-            搜 索
-          </button>
+            搜索
+          </Button>
         </div>
       </form>
     );
@@ -46,19 +51,16 @@ export default function SearchBar({ variant = 'inline', initialQuery = '' }: Sea
 
   return (
     <form onSubmit={handleSubmit} className="flex">
-      <input
+      <Input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="搜索关键词..."
-        className="flex-1 px-4 py-2 text-sm text-text-primary border border-border rounded-l focus:outline-none focus:border-primary"
+        className="rounded-r-none"
       />
-      <button
-        type="submit"
-        className="px-5 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-r transition-colors"
-      >
+      <Button type="submit" className="rounded-l-none">
         搜索
-      </button>
+      </Button>
     </form>
   );
 }

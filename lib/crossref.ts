@@ -47,10 +47,13 @@ export async function searchCrossRef(
       const doi = item.DOI as string || '';
       const url = `https://doi.org/${doi}`;
 
-      // 提取发表日期
-      const createdDate = (item.created as { 'date-parts': number[][] })['date-parts']?.[0];
-      const publishedPrint = (item['published-print'] as { 'date-parts': number[][] })['date-parts']?.[0];
-      const publishedOnline = (item['published-online'] as { 'date-parts': number[][] })['date-parts']?.[0];
+      // 提取发表日期（先检查父对象是否存在）
+      const created = item.created as { 'date-parts': number[][] } | undefined;
+      const publishedPrintObj = item['published-print'] as { 'date-parts': number[][] } | undefined;
+      const publishedOnlineObj = item['published-online'] as { 'date-parts': number[][] } | undefined;
+      const createdDate = created?.['date-parts']?.[0];
+      const publishedPrint = publishedPrintObj?.['date-parts']?.[0];
+      const publishedOnline = publishedOnlineObj?.['date-parts']?.[0];
       const dateParts = publishedPrint || publishedOnline || createdDate;
       const dateStr = dateParts
         ? `${dateParts[0]}-${String(dateParts[1] || 1).padStart(2, '0')}-${String(dateParts[2] || 1).padStart(2, '0')}`
@@ -114,8 +117,10 @@ export async function getCrossRefByDoi(doi: string): Promise<Article | null> {
     const abstract = (item.abstract as string) || '';
     const url = `https://doi.org/${item.DOI}`;
 
-    const publishedPrint = (item['published-print'] as { 'date-parts': number[][] })['date-parts']?.[0];
-    const dateParts = publishedPrint || (item.created as { 'date-parts': number[][] })['date-parts']?.[0];
+    const publishedPrintObj = item['published-print'] as ({ 'date-parts': number[][] } | undefined);
+    const publishedPrint = publishedPrintObj?.['date-parts']?.[0];
+    const created = item.created as ({ 'date-parts': number[][] } | undefined);
+    const dateParts = publishedPrint || created?.['date-parts']?.[0];
     const dateStr = dateParts
       ? `${dateParts[0]}-${String(dateParts[1] || 1).padStart(2, '0')}-${String(dateParts[2] || 1).padStart(2, '0')}`
       : '';

@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# project-specific ignores
+.open-next/
+.workbuddy/
+dev.log
+dev-err.log
+dev-output.txt
+start-dev.bat
+start-dev-logging.bat
+start-dev-safe.bat

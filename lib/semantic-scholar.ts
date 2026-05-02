@@ -2,6 +2,41 @@ import type { Article } from './types';
 
 const SEMANTIC_SCHOLAR_API = 'https://api.semanticscholar.org/graph/v1';
 
+/**
+ * 带指数退避重试的 fetch 封装，处理 429 限流。
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      if (response.status === 429) {
+        // 限流：等待后重试
+        const waitMs = Math.min(1000 * Math.pow(2, attempt), 10000);
+        console.warn(`Semantic Scholar 429 限流，第 ${attempt + 1} 次重试，${waitMs}ms 后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxRetries) {
+        const waitMs = Math.min(1000 * Math.pow(2, attempt), 10000);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+    }
+  }
+
+  throw lastError || new Error('请求失败（超过最大重试次数）');
+}
+
 export async function searchSemanticScholar(
   query: string,
   limit = 20,
@@ -15,7 +50,7 @@ export async function searchSemanticScholar(
   });
 
   try {
-    const response = await fetch(`${SEMANTIC_SCHOLAR_API}/paper/search?${params}`);
+    const response = await fetchWithRetry(`${SEMANTIC_SCHOLAR_API}/paper/search?${params}`);
 
     if (!response.ok) {
       console.error('Semantic Scholar API error:', response.status, response.statusText);
@@ -52,7 +87,7 @@ export async function getPaperById(id: string): Promise<Article | null> {
   const paperId = id.replace('ss-', '');
 
   try {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `${SEMANTIC_SCHOLAR_API}/paper/${paperId}?fields=title,abstract,url,publicationDate,authors,externalIds,fieldsOfStudy,openAccessPdf,tldr`
     );
 

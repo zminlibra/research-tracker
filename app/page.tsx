@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import SearchBar from '@/components/SearchBar';
 import HotTags from '@/components/HotTags';
+import TrendChart from '@/components/TrendChart';
 import TrendingList from '@/components/TrendingList';
 import { getTrendingArticles } from '@/lib/search';
 
@@ -67,6 +68,11 @@ export default async function HomePage() {
               </Link>
             </div>
             <TrendingList articles={latestPapers.slice(0, 8)} showRank={false} />
+          </div>
+
+          {/* 技术热度趋势 */}
+          <div className="mt-8">
+            <TrendChart />
           </div>
         </div>
       </section>

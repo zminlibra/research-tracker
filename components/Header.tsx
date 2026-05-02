@@ -1,8 +1,95 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { getCurrentUser, logoutUser, type StoredUser } from '@/lib/auth-store';
+import { Button } from '@/components/ui/button';
+
+const COMPARE_KEY = 'research-tracker-compare';
+
+function CompareCount() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    try { setCount(JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]').length); }
+    catch { setCount(0); }
+    const interval = setInterval(() => {
+      try { setCount(JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]').length); }
+      catch { setCount(0); }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  if (count === 0) return null;
+  return (
+    <Link href="/compare" className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full hover:bg-primary/20 transition-colors">
+      对比 ({count})
+    </Link>
+  );
+}
+
+function UserMenu() {
+  const [user, setUser] = useState<StoredUser | null>(null);
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    setUser(getCurrentUser());
+    const handleClick = () => setOpen(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  const handleLogout = () => {
+    logoutUser();
+    setUser(null);
+    setOpen(false);
+    router.push('/');
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <Link href="/login" className="hover:text-primary-dark transition-colors">登录</Link>
+        <span className="text-border">|</span>
+        <Link href="/register" className="hover:text-primary-dark transition-colors">注册</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-xs hover:text-primary-dark transition-colors"
+      >
+        <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-medium">
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+        <span className="hidden sm:inline">{user.name}</span>
+        <span className="text-xs opacity-70">▾</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-md shadow-lg border border-border py-1 text-sm z-50">
+          <div className="px-3 py-1.5 text-muted-foreground text-xs border-b border-border truncate">
+            {user.email}
+          </div>
+          <Link href="/history" className="block px-3 py-2 text-text-secondary hover:bg-accent hover:text-primary transition-colors">
+            阅读历史
+          </Link>
+          <Link href="/favorites" className="block px-3 py-2 text-text-secondary hover:bg-accent hover:text-primary transition-colors">
+            我的收藏
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full text-left px-3 py-2 text-destructive hover:bg-destructive/5 transition-colors"
+          >
+            退出登录
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const NAV_ITEMS = [
   { href: '/', label: '首页' },
@@ -12,6 +99,8 @@ const NAV_ITEMS = [
   { href: '/category/energy', label: '新能源' },
   { href: '/category/materials', label: '材料科学' },
   { href: '/category/quantum', label: '量子科技' },
+  { href: '/favorites', label: '我的收藏' },
+  { href: '/history', label: '阅读历史' },
 ];
 
 export default function Header() {
@@ -30,7 +119,10 @@ export default function Header() {
             </Link>
             <span className="text-text-muted text-xs ml-2 hidden sm:inline">科研与行业发展动态追踪平台</span>
           </div>
-          <div className="flex gap-3 text-xs text-text-muted">
+          <div className="flex gap-3 text-xs text-text-muted items-center">
+            <CompareCount />
+            <UserMenu />
+            <span className="text-border">|</span>
             <Link href="/about" className="hover:text-primary transition-colors">关于本站</Link>
             <span className="text-border">|</span>
             <Link href="/help" className="hover:text-primary transition-colors">帮助</Link>
