@@ -46,15 +46,16 @@ interface RSSSource {
   type: 'news';
 }
 
+// 注意：hnrss.org 已被移除，因为 Hacker News 内容已由 fetchHNTopStories API 覆盖。
+// 各 RSS 源按内容丰富度排序，优先处理质量高的源。
 const RSS_SOURCES: RSSSource[] = [
-  { url: 'https://hnrss.org/frontpage?count=25', name: 'Hacker News', type: 'news' },
   { url: 'https://feeds.arstechnica.com/arstechnica/index', name: 'Ars Technica', type: 'news' },
-  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml', name: 'BBC Tech', type: 'news' },
-  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', name: 'NYT Tech', type: 'news' },
-  { url: 'https://www.sciencedaily.com/rss/top/science.xml', name: 'Science Daily', type: 'news' },
   { url: 'https://www.sciencedaily.com/rss/top/technology.xml', name: 'Science Daily Tech', type: 'news' },
+  { url: 'https://www.sciencedaily.com/rss/top/science.xml', name: 'Science Daily', type: 'news' },
   { url: 'https://www.wired.com/feed/rss', name: 'Wired', type: 'news' },
   { url: 'https://36kr.com/feed', name: '36氪', type: 'news' },
+  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml', name: 'BBC Tech', type: 'news' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', name: 'NYT Tech', type: 'news' },
 ];
 
 // ─── RSS 解析工具 ─────────────────────────────────────────────
@@ -320,34 +321,47 @@ export async function searchNews(
   let articles: Article[] = [];
   const chineseQuery = isChineseQuery(query);
 
-  // 1. Hacker News API
+  // 1. Hacker News API（限制为总量的 1/3，留更多空间给其他 RSS 源）
   try {
     const hnStories = await fetchHNTopStories(60);
     const matching = hnStories
       .filter((s) => matchesQuery(s.title, s.text || '', query))
-      .slice(0, Math.ceil(maxResults / 2));
+      .slice(0, Math.ceil(maxResults / 3));
     articles.push(...matching.map(hnToArticle));
   } catch {
     // 静默失败
   }
 
-  // 2. RSS 源（并行获取）
+  // 2. RSS 源（并行获取 + 均衡配额）
   try {
     const feedResults = await Promise.all(
       RSS_SOURCES.map((source) => fetchRSSFeed(source.url))
     );
 
+    // 给 HN 之外的 RSS 源预分配配额，避免前几个源占满全部结果
+    // HN API 已占用约 maxResults/2，剩余空间均分给 RSS 源
+    const remainingAfterHN = Math.max(
+      4,
+      maxResults - articles.length
+    );
+    const perSourceQuota = Math.max(
+      3,
+      Math.ceil(remainingAfterHN / RSS_SOURCES.length)
+    );
+
     for (let i = 0; i < feedResults.length; i++) {
       if (articles.length >= maxResults) break;
       const source = RSS_SOURCES[i];
+      let sourceAdded = 0;
 
       for (const item of feedResults[i]) {
         if (articles.length >= maxResults) break;
-        // 中文查询或短查询时放宽匹配条件
+        if (sourceAdded >= perSourceQuota) break;
         if (matchesQuery(item.title, item.description, query)) {
           const article = rssToArticle(item, source.type, source.name);
           article.tags = extractKeywords(query, article.title);
           articles.push(article);
+          sourceAdded++;
         }
       }
     }
@@ -356,12 +370,12 @@ export async function searchNews(
   }
 
   // 3. 对于中文查询或无结果时，补充热门科技新闻（不按关键词过滤）
-  if (articles.length < 5 || chineseQuery) {
+  if (articles.length < 8 || chineseQuery) {
     try {
       const fillFeeds = await Promise.all([
-        fetchRSSFeed('https://hnrss.org/frontpage?count=20'),
+        fetchRSSFeed('https://feeds.arstechnica.com/arstechnica/index'),
         fetchRSSFeed('https://www.sciencedaily.com/rss/top/technology.xml'),
-        fetchRSSFeed('https://feeds.bbci.co.uk/news/technology/rss.xml'),
+        fetchRSSFeed('https://www.wired.com/feed/rss'),
       ]);
 
       const seen = new Set(articles.map((a) => a.url));
