@@ -20,7 +20,7 @@ export default function HelpPage() {
         <ul className="text-sm text-text-secondary space-y-3">
           <li className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-2" />
-            <span><strong>学术论文</strong>：来自 arXiv、PubMed、IEEE 等平台的科研论文，适合了解学术前沿</span>
+            <span><strong>学术论文</strong>：来自 arXiv、OpenAlex、PubMed、IEEE 等平台的科研论文，适合了解学术前沿</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mt-2" />

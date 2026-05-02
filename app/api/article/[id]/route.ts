@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getArxivById } from '@/lib/arxiv';
+import { getOpenAlexById } from '@/lib/openalex';
 
 export async function GET(
   _request: Request,
@@ -13,6 +14,11 @@ export async function GET(
     }
     if (id.startsWith('arxiv-')) {
       const article = await getArxivById(id.replace('arxiv-', ''));
+      if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json(article);
+    }
+    if (id.startsWith('openalex-')) {
+      const article = await getOpenAlexById(id);
       if (!article) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       return NextResponse.json(article);
     }

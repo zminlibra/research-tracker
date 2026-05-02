@@ -20,8 +20,9 @@ export default function Footer() {
             <h3 className="text-white font-bold text-lg mb-3">数据来源</h3>
             <ul className="text-sm space-y-1.5 text-gray-400">
               <li>arXiv — 学术预印本</li>
+              <li>OpenAlex — 全球学术元数据（2 亿+ 论文）</li>
               <li>PubMed / IEEE — 学术文献</li>
-              <li>各大学术期刊与会议</li>
+              <li>Hacker News / 科技新闻</li>
             </ul>
           </div>
 

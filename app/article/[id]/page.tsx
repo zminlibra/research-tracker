@@ -115,6 +115,14 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
           imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
         };
+      } else if (id.startsWith('openalex-')) {
+        const workId = id.replace('openalex-', '');
+        article = {
+          id, title: 'OpenAlex 学术论文', summary: '该内容来自 OpenAlex。详细信息请点击下方"查看原文"链接获取完整论文。',
+          source: 'OpenAlex', sourceType: 'paper',
+          url: `https://openalex.org/works/${workId}`,
+          imageUrl: null, publishedDate: '', authors: [], tags: [], clickCount: 0,
+        };
       } else if (id.startsWith('web-') || id.startsWith('news-')) {
         let originalUrl = '#';
         try {

@@ -16,6 +16,7 @@ import type { Fetcher, SearchOptions } from './base-fetcher';
 // 各数据源实现
 import { ArxivFetcher } from './arxiv-fetcher';
 import { IEEEFetcher } from './ieee-fetcher';
+import { OpenAlexFetcher } from './openalex-fetcher';
 import { PubMedFetcher } from './pubmed-fetcher';
 import { WebSearchFetcher } from './web-search-fetcher';
 import { NewsFetcher } from './news-fetcher';
@@ -26,6 +27,7 @@ import { NewsFetcher } from './news-fetcher';
 export const defaultFetchers: Fetcher[] = [
   new ArxivFetcher(),
   new IEEEFetcher(),
+  new OpenAlexFetcher(),
   new PubMedFetcher(),
   new WebSearchFetcher(),
   new NewsFetcher(),
@@ -119,7 +121,7 @@ function rerankScore(article: import('../types').Article, query: string): number
   }
 
   // 2. 来源权威性加分
-  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'PubMed'];
+  const authoritySources = ['Nature', 'Science', 'Cell', 'IEEE', 'ACM', 'arXiv', 'PubMed', 'OpenAlex'];
   if (authoritySources.some((s) => article.source.includes(s))) {
     score += 3;
   }
@@ -152,6 +154,7 @@ export async function fetchArticleById(id: string): Promise<import('../types').A
     (f) => f.name.toLowerCase().includes(sourceName) ||
       (sourceName === 'arxiv' && f.name === 'ArXiv') ||
       (sourceName === 'ieee' && f.name === 'IEEE Xplore') ||
+      (sourceName === 'openalex' && f.name === 'OpenAlex') ||
       (sourceName === 'pubmed' && f.name === 'PubMed') ||
       (sourceName === 'web' && f.name === 'Web Search') ||
       (sourceName === 'news' && f.name === 'News & RSS')
