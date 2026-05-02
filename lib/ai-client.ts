@@ -164,60 +164,84 @@ export async function summarizeLongText(text: string): Promise<string> {
   return finalSummary;
 }
 
-// ─── 生成结构化洞察 ───────────────────────
+// ─── 生成结构化洞察（7 维度增强版）──────────────────────
 export async function generateInsight(
   title: string,
-  summary: string
+  abstract: string
 ): Promise<AIInsight> {
-  const prompt = `你是一位资深合成生物学研究员。请对以下论文进行分析，输出严格按如下四段格式（每段不超过 150 字）：
+  const hasContent = abstract && abstract.length > 20;
+  const prompt = `你是一位资深合成生物学研究员。请对以下论文进行深度分析，严格按如下七个部分输出，每部分不超过指定字数：
+
+### 一句话摘要
+（用 1 句话概括整篇论文的核心发现或结论，不超过 40 字）
 
 ### 核心贡献
-（用 1-2 句话说明该研究解决了什么问题、提出了什么新方法/新发现，禁止出现"本文提出了"等套话）
+（该研究解决了什么问题、提出了什么新方法/新发现？用 1-3 句话，禁止出现"本文提出了"等套话，不超过 120 字）
 
 ### 技术路径
-（说明使用的关键实验方法、基因工程手段、底盘细胞或仪器设备）
+（使用了哪些关键实验方法、基因工程手段、底盘细胞、仪器设备或计算工具？不超过 150 字）
 
 ### 实验结果
-（核心数据、性能指标、与现有方法的对比）
+（核心数据、性能指标、产量/效率提升幅度、与现有方法的对比等，不超过 150 字）
+
+### 核心要点
+（列出该研究最重要的 3-5 个发现或结论，每点用一句话，用编号 1. 2. 3. 格式，不超过 200 字）
 
 ### 局限性
-（该研究的不足、未解决的问题、或实际应用中的限制）
+（该研究的不足之处：方法局限、规模限制、未解决问题、应用场景约束等，不超过 120 字）
+
+### 深度见解
+（该研究对合成生物学领域的影响、潜在应用方向、未来研究建议或展望，不超过 150 字）
 
 论文标题：${title}
-摘要：${summary || '（无摘要）'}
+${hasContent ? `论文摘要：\n${abstract}` : '（无摘要，仅基于标题分析）'}
 
-只输出四段内容，不要任何前言或结尾。`;
+严格按以上七部分格式输出，每部分前加"### "标记，不要任何前言、结语或其他内容。`;
 
   const text = await callDeepSeek(
     [
-      { role: 'system', content: '你是合成生物学领域的资深研究员，擅长快速抓住论文核心贡献和技术路径。输出直接、简洁，禁止套话。' },
+      {
+        role: 'system',
+        content:
+          '你是合成生物学领域的资深研究员，擅长深度学术分析。输出直接、精准、专业，禁止套话和废话，七个部分缺一不可。',
+      },
       { role: 'user', content: prompt },
     ],
     0.3,
-    800
+    1200
   );
 
-  // 解析四段结构
-  const sections = {
+  // 解析七段结构
+  const sections: AIInsight = {
+    summary: '',
     coreContribution: '',
     methodology: '',
     keyResults: '',
+    keyTakeaways: '',
     limitations: '',
+    deepInsights: '',
   };
 
-  const coreMatch = text.match(/核心贡献[\s\S]*?\n([\s\S]*?)(?=\n###|\n*$)/);
-  const methodMatch = text.match(/技术路径[\s\S]*?\n([\s\S]*?)(?=\n###|\n*$)/);
-  const resultMatch = text.match(/实验结果[\s\S]*?\n([\s\S]*?)(?=\n###|\n*$)/);
-  const limitMatch = text.match(/局限性[\s\S]*?\n([\s\S]*?)(?=\n###|\n*$)/);
+  const patterns: [keyof AIInsight, string][] = [
+    ['summary', '一句话摘要'],
+    ['coreContribution', '核心贡献'],
+    ['methodology', '技术路径'],
+    ['keyResults', '实验结果'],
+    ['keyTakeaways', '核心要点'],
+    ['limitations', '局限性'],
+    ['deepInsights', '深度见解'],
+  ];
 
-  if (coreMatch) sections.coreContribution = coreMatch[1].trim();
-  if (methodMatch) sections.methodology = methodMatch[1].trim();
-  if (resultMatch) sections.keyResults = resultMatch[1].trim();
-  if (limitMatch) sections.limitations = limitMatch[1].trim();
+  for (const [key, label] of patterns) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`${escaped}[\\s\\S]*?\\n([\\s\\S]*?)(?=\\n###|\\n*$)`);
+    const match = text.match(regex);
+    if (match) sections[key] = match[1].trim();
+  }
 
-  // 兜底：如果解析失败，把整个文本放进 coreContribution
-  if (!sections.coreContribution && !sections.methodology) {
-    sections.coreContribution = text.trim();
+  // 兜底：如果解析全部失败，把原文本放进 summary
+  if (!sections.summary && !sections.coreContribution) {
+    sections.summary = text.trim().slice(0, 200);
   }
 
   return sections;

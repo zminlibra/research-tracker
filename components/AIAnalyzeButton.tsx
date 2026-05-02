@@ -91,7 +91,7 @@ export default function AIAnalyzeButton({ title, abstract, sourceType }: AIAnaly
   if (loading) {
     return (
       <div className="mb-8">
-        <AIInsight insight={{ coreContribution: '', methodology: '', keyResults: '', limitations: '' }} loading={true} />
+        <AIInsight insight={{ summary: '', coreContribution: '', methodology: '', keyResults: '', keyTakeaways: '', limitations: '', deepInsights: '' }} loading={true} />
       </div>
     );
   }

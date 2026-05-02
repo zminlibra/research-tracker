@@ -64,10 +64,12 @@ export class PubMedFetcher implements Fetcher {
 
       // 2. ESummary：获取每篇文章的摘要元数据
       const summary = await fetchSummaries(pmids, apiKey);
+      // 3. EFetch：获取摘要（ESummary 不含 abstract，需单独获取）
+      const abstracts = await fetchPubmedAbstracts(pmids, apiKey);
       const articles = pmids
         .map((pmid) => summary[pmid])
         .filter(Boolean)
-        .map((item: Record<string, unknown>) => toArticle(item));
+        .map((item: Record<string, unknown>) => toArticle(item, abstracts));
 
       setCached(cacheKey, articles, 30 * 60 * 1000); // 缓存 30 分钟
       return articles;
@@ -88,7 +90,8 @@ export class PubMedFetcher implements Fetcher {
       const summary = await fetchSummaries([pmid], apiKey);
       const item = summary[pmid];
       if (!item) return null;
-      const article = toArticle(item);
+      const abstracts = await fetchPubmedAbstracts([pmid], apiKey);
+      const article = toArticle(item, abstracts);
       setCached(cacheKey, article, 60 * 60 * 1000);
       return article;
     } catch {
@@ -117,8 +120,74 @@ async function fetchSummaries(
   return data.result || {};
 }
 
+/**
+ * 批量获取 PubMed 摘要（通过 EFetch API 返回 XML）。
+ * EFetch 支持一次请求获取多篇文章的摘要，XML 中每个 Article 标签含 AbstractText。
+ */
+async function fetchPubmedAbstracts(
+  pmids: string[],
+  apiKey = ''
+): Promise<Record<string, string>> {
+  if (pmids.length === 0) return {};
+
+  try {
+    const params = new URLSearchParams({
+      db: 'pubmed',
+      id: pmids.join(','),
+      rettype: 'abstract',
+      retmode: 'xml',
+      ...(apiKey ? { api_key: apiKey } : {}),
+    });
+
+    const res = await fetchWithRateLimit(`${PUBMED_FETCH}?${params}`);
+    if (!res.ok) return {};
+    const xml = await res.text();
+
+    const result: Record<string, string> = {};
+    // 解析 <PubmedArticle>...</PubmedArticle> 块
+    const articleMatches = xml.matchAll(/<PubmedArticle>([\s\S]*?)<\/PubmedArticle>/g);
+
+    for (const match of articleMatches) {
+      const articleXml = match[1];
+      const pmidMatch = articleXml.match(/<PMID[^>]*>([\s\S]*?)<\/PMID>/);
+      const pmid = pmidMatch ? pmidMatch[1].trim() : null;
+
+      if (!pmid) continue;
+
+      // 提取所有 <AbstractText> 内容（可能有多个 Label+Text 对）
+      const abstractTexts: string[] = [];
+      const absMatches = articleXml.matchAll(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g);
+      for (const absMatch of absMatches) {
+        let text = absMatch[1].trim();
+        // 去除内部标签（如 <xref>、<bold> 等）
+        text = text.replace(/<[^>]+>/g, '');
+        // 清理实体编码
+        text = text
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ');
+        if (text) abstractTexts.push(text);
+      }
+
+      if (abstractTexts.length > 0) {
+        result[pmid] = abstractTexts.join('\n\n');
+      }
+    }
+
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 /** 将 PubMed API 返回的数据转为统一的 Article 格式 */
-function toArticle(item: Record<string, unknown>): Article {
+function toArticle(
+  item: Record<string, unknown>,
+  abstracts: Record<string, string> = {}
+): Article {
   const pmid = String(item.uid || '');
   const title = ((item.title as string) || '无标题').replace(/\s+/g, ' ');
   const authors = ((item.authors as Array<{ name: string }>) || []).map(
@@ -128,12 +197,13 @@ function toArticle(item: Record<string, unknown>): Article {
   const journal = (item.fulljournalname as string) || '';
   const tags = journal ? [journal] : [];
 
-  // PubMed 没有直接摘要（ESummary 不含 abstract），需单独调用 EFetch
-  // 这里先留空，详情页再按需获取
+  // 优先使用 EFetch 获取的真实摘要
+  const summary = abstracts[pmid] || '暂无摘要（点击查看详情）';
+
   return {
     id: `pubmed-${pmid}`,
     title,
-    summary: '暂无摘要（点击查看详情）',
+    summary,
     source: 'PubMed',
     sourceType: 'paper',
     url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
